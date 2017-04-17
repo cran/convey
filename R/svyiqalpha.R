@@ -7,7 +7,7 @@
 #' @param alpha the order of the quantile
 #' @return Object of class "\code{cvystat}", which are vectors with a "\code{var}" attribute giving the variance and a "\code{statistic}" attribute giving the name of the statistic.
 #' @param na.rm Should cases with missing values be dropped?
-#' @param ... future expansion
+#' @param ... arguments passed on to `survey::svyquantile`
 #'
 #' @details you must run the \code{convey_prep} function on your survey design object immediately after creating it with the \code{svydesign} or \code{svrepdesign} function.
 #'
@@ -43,17 +43,14 @@
 #'
 #' svyiqalpha( ~eqincome , design = des_eusilc_rep, .50 )
 #'
+#' \dontrun{
+#'
 #' # linearized design using a variable with missings
 #' svyiqalpha( ~ py010n , design = des_eusilc, .50 )
 #' svyiqalpha( ~ py010n , design = des_eusilc , .50, na.rm = TRUE )
 #' # replicate-weighted design using a variable with missings
 #' svyiqalpha( ~ py010n , design = des_eusilc_rep, .50 )
 #' svyiqalpha( ~ py010n , design = des_eusilc_rep ,.50, na.rm = TRUE )
-#'
-#'
-#' # library(MonetDBLite) is only available on 64-bit machines,
-#' # so do not run this block of code in 32-bit R
-#' \dontrun{
 #'
 #' # database-backed design
 #' library(MonetDBLite)
@@ -77,6 +74,8 @@
 #' svyiqalpha( ~ eqincome , design = dbd_eusilc, .50 )
 #'
 #' dbRemoveTable( conn , 'eusilc' )
+#'
+#' dbDisconnect( conn , shutdown = TRUE )
 #'
 #' }
 #'
@@ -111,7 +110,7 @@ svyiqalpha.survey.design <-
 		w <- 1/design$prob
 		N <- sum(w)
 
-		q_alpha <- survey::svyquantile(x = formula, design = design, quantiles = alpha, method = "constant", na.rm = na.rm)
+		q_alpha <- survey::svyquantile(x = formula, design = design, quantiles = alpha, method = "constant", na.rm = na.rm,...)
 
 		q_alpha <- as.vector(q_alpha)
 
@@ -127,7 +126,7 @@ svyiqalpha.survey.design <-
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
 
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svystat" )
 		attr(rval, "lin") <- iq
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "quantile"
@@ -164,7 +163,7 @@ svyiqalpha.svyrep.design <-
 		variance <- as.matrix( variance )
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svrepstat" )
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "quantile"
 

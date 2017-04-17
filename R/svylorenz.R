@@ -19,7 +19,7 @@
 #' Notice that the 'empirical' curve is observation-based and is the one actually used to calculate the Gini index.
 #' On the other hand, the quantile-based curve is used to estimate the shares, SEs and confidence intervals.
 #'
-#' This way, as the number of quantiles of the quantile-based function increases, the qwuantile-based curve approacches the observation-based curve.
+#' This way, as the number of quantiles of the quantile-based function increases, the quantile-based curve approacches the observation-based curve.
 #'
 #' @return Object of class "\code{svyquantile}", which are vectors with a "\code{quantiles}" attribute giving the proportion of income below that quantile,
 #' and a "\code{SE}" attribute giving the standard errors of the estimates.
@@ -40,7 +40,7 @@
 #' @keywords survey
 #'
 #' @examples
-#' \dontrun{
+#'
 #' library(survey)
 #' library(vardpoor)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
@@ -56,6 +56,7 @@
 #'
 #' svylorenz( ~eqincome , des_eusilc_rep, seq(0,1,.05), alpha = .01 )
 #'
+#' \dontrun{
 #'
 #' # linearized design using a variable with missings
 #' svylorenz( ~py010n , des_eusilc, seq(0,1,.05), alpha = .01 )
@@ -67,9 +68,7 @@
 #' svylorenz( ~py010n , des_eusilc_rep, seq(0,1,.05), alpha = .01, na.rm = TRUE )
 #'
 #'
-#' # library(MonetDBLite) is only available on 64-bit machines,
-#' # so do not run this block of code in 32-bit R
-#' 
+#'
 #' # database-backed design
 #' library(MonetDBLite)
 #' library(DBI)
@@ -80,13 +79,13 @@
 #' dbd_eusilc <-
 #' 	svydesign(
 #' 		ids = ~rb030 ,
-#' 		strata = ~db040 , 
+#' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
 #' 		dbname=dbfolder,
 #' 		dbtype="MonetDBLite"
 #' 	)
-#' 
+#'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
 #'
 #' svylorenz( ~eqincome , dbd_eusilc, seq(0,1,.05), alpha = .01 )
@@ -102,8 +101,10 @@
 #'
 #' dbRemoveTable( conn , 'eusilc' )
 #'
+#' dbDisconnect( conn , shutdown = TRUE )
+#'
 #' }
-#' 
+#'
 #' @importFrom grDevices adjustcolor
 #' @importFrom graphics abline lines plot points polygon
 #' @importFrom utils tail
@@ -156,8 +157,7 @@ svylorenzpolygon_wrap <-
 #' @export
 svylorenz.survey.design <- function ( formula , design, quantiles = seq(0,1,.1), empirical = FALSE, plot = TRUE, add = FALSE, curve.col = "red", ci = TRUE, alpha = .05, na.rm = FALSE , ... ) {
 
-	if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your linearized survey design object immediately after creating it with the svydesign() function.")
-
+  if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your linearized survey design object immediately after creating it with the svydesign() function.")
 
   # quantile function:
   wtd.qtl <- function (x, q = .5, weights = NULL ) {
@@ -166,30 +166,31 @@ svylorenz.survey.design <- function ( formula , design, quantiles = seq(0,1,.1),
     x <- x[indices]
     weights <- weights[indices]
 
-    ordx <- order(x)
-    x <- x[ordx]
-    weights <- weights[ordx]
-
+    x_1 <- c(0,x[-length(x)])
     N <- sum(weights)
     wsum <- cumsum(weights)
     wsum_1 <- c(0,wsum[-length(wsum)])
+    alpha_k <- wsum / N
 
-    k <- which( ( wsum_1 < (q * N) ) & ( (q * N) <= wsum) )
+    k <- which( (wsum_1 < (q * N) ) & ( (q * N) <= wsum) )
 
-    return( x[k] )
+    return( x_1[ k ] + ( x[k] - x_1[k] ) * ( (q * N) - wsum_1[k] ) / weights[k] )
+
+  }
+
+  # partial sum (1st definition):
+  wtd.psum <- function (x, q = .5, weights = NULL ) {
+    indices <- weights != 0
+    x <- x[indices]
+    weights <- weights[indices]
+
+    x_thres <- wtd.qtl(x = x, q = q, weights = weights )
+
+    return( sum( weights * x * 1 * (x <= x_thres) ) )
 
   }
 
   # partial sum (2nd definition)
-  H_fn <- function(x) {
-    y <- NULL
-    y[ x < 0 ] <- 0
-    y[ (0 <= x) & (x < 1) ] <- x[ (0 <= x) & (x < 1) ]
-    y[ x >= 1 ] <- 1
-
-    return(y)
-  }
-
   wtd.psum <- function (x, q = .5, weights = NULL ) {
 
     indices <- weights != 0
@@ -205,6 +206,15 @@ svylorenz.survey.design <- function ( formula , design, quantiles = seq(0,1,.1),
     k <- which( (wsum_1 < (q * N) ) & ( (q * N) <= wsum) )
 
     t_k <- ( (q * N) - wsum_1 ) / weights
+
+    H_fn <- function(x) {
+      y <- NULL
+      y[ x < 0 ] <- 0
+      y[ (0 <= x) & (x < 1) ] <- x[ (0 <= x) & (x < 1) ]
+      y[ x >= 1 ] <- 1
+
+      return(y)
+    }
 
     return( sum( weights * x * H_fn(t_k) ) )
 
@@ -226,6 +236,9 @@ svylorenz.survey.design <- function ( formula , design, quantiles = seq(0,1,.1),
   w <- w[ordincvar]
   incvar <- incvar[ordincvar]
 
+  incvar <- incvar[w != 0]
+  w <- w[w != 0]
+
   average <- sum( w * incvar ) / sum( w )
   if ( is.na(average) ) {
     variance <- as.matrix(NA)
@@ -233,7 +246,7 @@ svylorenz.survey.design <- function ( formula , design, quantiles = seq(0,1,.1),
     rval <- t( matrix( data = rep(NA, length(quantiles)), nrow = length(quantiles), dimnames = list( as.character( quantiles ), as.character(formula)[2] ) ) )
     rval <- list(quantiles = rval, CIs = cis)
     attr(rval, "SE") <- rep(NA, length(quantiles))
-    class(rval) <- "svyquantile"
+    class(rval) <- c( "cvyquantile" , "svyquantile" )
 
     return(rval)
   }
@@ -252,7 +265,8 @@ svylorenz.survey.design <- function ( formula , design, quantiles = seq(0,1,.1),
   }
 
   N <- sum( w )
-  se <- NULL
+  var <- NULL
+  lin_mat <- matrix( NA, nrow = length( ordincvar ), ncol = length(quantiles) )
   for ( pc in quantiles ) {
     i <- match( pc, quantiles )
     pc
@@ -262,66 +276,91 @@ svylorenz.survey.design <- function ( formula , design, quantiles = seq(0,1,.1),
       quant <- wtd.qtl( x = incvar, q = pc, weights = w )
       s.quant <- L.p[i]
 
-      v_k <- NULL
-      #u_i <- ( 1 / ( N * average ) ) * ( ( ( incvar - quant ) * ( incvar <= quant ) ) + ( pc * quant ) - ( incvar * s.quant ) )
-      v_k <- incvar * H_fn( pc * sum(w) - cumsum( c(0,w[-length(w)]) ) ) + ( pc - 1*(incvar < quant) )*quant
       u_i <- 1/design$prob
-      u_i[ u_i != 0 ] <- ( v_k - s.quant * incvar ) / sum( w * incvar )
+      u_i[ u_i > 0 ] <- ( 1 / ( N * average ) ) * ( ( ( incvar - quant ) * ( incvar <= quant ) ) + ( pc * quant ) - ( incvar * s.quant ) )
       u_i <- u_i[ sort(ordincvar) ]
 
-      se[i] <- survey::svyrecvar( u_i/design$prob, design$cluster, design$strata, design$fpc, postStrata = design$postStrata )
+      lin_mat[ , i ] <- u_i
 
-      rm(quant, s.quant)
+      rm(quant, s.quant , u_i )
 
     } else if ( pc == 0 ) {
 
       L.p[i] <- 0
 
-      se[i] <- 0
+      lin_mat[ , i ] <- 0
 
     } else if ( pc == 1 ) {
 
       L.p[i] <- 1
 
-      se[i] <- 0
+      lin_mat[ , i] <- 0
     }
 
     rm( i, pc )
 
   }
-  se <- sqrt(se)
+  var <- survey::svyrecvar( lin_mat/design$prob, design$cluster, design$strata, design$fpc, postStrata = design$postStrata )
 
-  CI.L <- NULL
-  CI.U <- NULL
-  for (i in seq_along(se) ) {
-    CI.L[i] <- L.p[i] - se[i] * qnorm( alpha, mean = 0, sd = 1, lower.tail = FALSE )
-    CI.U[i] <- L.p[i] + se[i] * qnorm( alpha, mean = 0, sd = 1, lower.tail = FALSE )
-  }
+  se <- sqrt(diag(var))
 
-  cis <- array( rbind(CI.L,CI.U), dim = c(2, length(quantiles)), dimnames = list( c( "(lower", "upper)" ), as.character(quantiles) ) )
+
+  CI.L <- L.p - se * qnorm( alpha, mean = 0, sd = 1, lower.tail = FALSE )
+  CI.U <- L.p + se * qnorm( alpha, mean = 0, sd = 1, lower.tail = FALSE )
+
+  cis <- structure( rbind( CI.L,CI.U ), .Dim = c(2L, length(quantiles), 1L), .Dimnames = list(c("(lower", "upper)"), as.character(quantiles),  as.character(formula)[2]))
+
   rval <- t( matrix( data = L.p, nrow = length(quantiles), dimnames = list( as.character( quantiles ), as.character(formula)[2] ) ) )
   rval <- list(quantiles = rval, CIs = cis)
+  attr(rval, "var") <- var
   attr(rval, "SE") <- se
-  class(rval) <- "svyquantile"
+  class(rval) <- c( "cvyquantile" , "svyquantile" )
 
   if ( plot ) {
 
-    if ( !add ) svylorenzplot_wrap( ... )
+    plot_dots <- list( ... )
+
+    # remove `deff` argument sent by svyby
+    if( 'deff' %in% names( plot_dots ) ) plot_dots$deff <- NULL
+
+    if ( !add ) do.call( svylorenzplot_wrap , plot_dots )
 
     if( any( c( 'xlim' , 'ylim' , 'col' ) %in% names( list( ... ) ) ) ) stop( "xlim=, ylim=, and col= parameters are fixed within `svylorenz`.  use curve.col= to change the line color" )
-    abline( 0 , 1 , ylim = c( 0 , 1 ) , ... )
-    if( empirical ) svylorenzlines_wrap( E_p , E_L.p , col = curve.col , ... )
-    svylorenzpoints_wrap( quantiles , L.p , col = curve.col , ... )
+    abline( 0 , 1 , ylim = c( 0 , 1 ) , plot_dots )
+
+    if( empirical ) {
+      lines_dots <- plot_dots
+      lines_dots$x <- E_p
+      lines_dots$y <- E_L.p
+      lines_dots$col = curve.col
+      do.call( svylorenzlines_wrap , lines_dots )
+    }
+
+    points_dots <- plot_dots
+    points_dots$x <- quantiles
+    points_dots$y <- L.p
+    points_dots$col <- curve.col
+
+    do.call( svylorenzpoints_wrap , points_dots )
 
     if (ci) {
       X.Vec <- as.numeric( c(quantiles, tail(quantiles, 1), rev(quantiles), quantiles[1]) )
       Y.Vec <- as.numeric( c( CI.L, tail(CI.U, 1), rev(CI.U), CI.L[1] ) )
-      svylorenzpolygon_wrap(X.Vec, Y.Vec, col = adjustcolor( curve.col, alpha.f = .2), border = NA , ...)
+
+      polygon_dots <- plot_dots
+      polygon_dots$x <- X.Vec
+      polygon_dots$y <- Y.Vec
+      polygon_dots$col <- adjustcolor( curve.col, alpha.f = .2)
+      polygon_dots$border <- NA
+
+      do.call( svylorenzpolygon_wrap , polygon_dots )
+
     }
 
   }
 
   return(rval)
+
 }
 
 
@@ -329,7 +368,7 @@ svylorenz.survey.design <- function ( formula , design, quantiles = seq(0,1,.1),
 #' @export
 svylorenz.svyrep.design <- function(formula , design, quantiles = seq(0,1,.1), empirical = FALSE, plot = TRUE, add = FALSE, curve.col = "red", ci = TRUE, alpha = .05, na.rm = FALSE , ...) {
 
-		if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your replicate-weighted survey design object immediately after creating it with the svrepdesign() function.")
+  if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your replicate-weighted survey design object immediately after creating it with the svrepdesign() function.")
 
   # quantile function:
   wtd.qtl <- function (x, q = .5, weights = NULL ) {
@@ -337,10 +376,6 @@ svylorenz.svyrep.design <- function(formula , design, quantiles = seq(0,1,.1), e
     indices <- weights != 0
     x <- x[indices]
     weights <- weights[indices]
-
-    ordx <- order(x)
-    x <- x[ordx]
-    weights <- weights[ordx]
 
     x_1 <- c(0,x[-length(x)])
     N <- sum(weights)
@@ -360,10 +395,6 @@ svylorenz.svyrep.design <- function(formula , design, quantiles = seq(0,1,.1), e
     x <- x[indices]
     weights <- weights[indices]
 
-    ordx <- order(x)
-    x <- x[ordx]
-    weights <- weights[ordx]
-
     x_thres <- wtd.qtl(x = x, q = q, weights = weights )
 
     return( sum( weights * x * 1 * (x <= x_thres) ) )
@@ -376,10 +407,6 @@ svylorenz.svyrep.design <- function(formula , design, quantiles = seq(0,1,.1), e
     indices <- weights != 0
     x <- x[indices]
     weights <- weights[indices]
-
-    ordx <- order(x)
-    x <- x[ordx]
-    weights <- weights[ordx]
 
     x_1 <- c(0,x[-length(x)])
     N <- sum(weights)
@@ -415,14 +442,31 @@ svylorenz.svyrep.design <- function(formula , design, quantiles = seq(0,1,.1), e
   if(na.rm){
     nas<-is.na(incvar)
     design<-design[!nas,]
-    df <- model.frame(design)
-    incvar <- incvar[!nas]
   }
 
+  incvar <- model.frame(formula, design$variables, na.action = na.pass)[[1]]
   ws <- weights(design, "sampling")
-  L.p <- t( as.matrix( lapply_wtd.psum(x = incvar, qs = quantiles, weights = ws ) ) )
-  rval <- t( matrix( data = L.p, dimnames = list( as.character( quantiles ) ) ) )
   ww <- weights(design, "analysis")
+
+  ordincvar <- order( incvar )
+
+  ws <- ws[ ordincvar ]
+  ww <- ww[ ordincvar, ]
+  incvar <- incvar[ ordincvar ]
+
+  if ( any( is.na( incvar [ ws > 0 ] ) ) ) {
+    variance <- as.matrix(NA)
+    cis <- array( rbind(rep(NA, length(quantiles)),rep(NA, length(quantiles))), dim = c(2, length(quantiles)), dimnames = list( c( "(lower", "upper)" ), as.character(quantiles) ) )
+    rval <- t( matrix( data = rep(NA, length(quantiles)), nrow = length(quantiles), dimnames = list( as.character( quantiles ), as.character(formula)[2] ) ) )
+    rval <- list(quantiles = rval, CIs = cis)
+    attr(rval, "SE") <- rep(NA, length(quantiles))
+    class(rval) <- c( "cvyquantile" , "svyquantile" )
+
+    return(rval)
+  }
+
+  L.p <- t( as.matrix( lapply_wtd.psum( x = incvar, qs = quantiles, weights = ws ) ) )
+  rval <- t( matrix( data = L.p, dimnames = list( as.character( quantiles ) ) ) )
   qq <- apply(ww, 2, function(wi) lapply_wtd.psum(x = incvar, qs = quantiles, weights = wi ) )
 
   if ( any(is.na(qq))) {
@@ -431,15 +475,14 @@ svylorenz.svyrep.design <- function(formula , design, quantiles = seq(0,1,.1), e
     rval <- t( matrix( data = rep(NA, length(quantiles)), nrow = length(quantiles), dimnames = list( as.character( quantiles ), as.character(formula)[2] ) ) )
     rval <- list(quantiles = rval, CIs = cis)
     attr(rval, "SE") <- rep(NA, length(quantiles))
-    class(rval) <- "svyquantile"
+    class(rval) <- c( "cvyquantile" , "svyquantile" )
 
     return(rval)
-
   }
 
-  variance <- apply( qq, 1, function(x) survey::svrVar(x, design$scale, design$rscales, mse = design$mse, coef = rval) )
-  variance[c(1, length(quantiles))] <- 0
-  se <- sqrt(variance)
+  variance <- survey::svrVar( t(qq), design$scale, design$rscales, mse = design$mse, coef = rval )
+  se <- sqrt(diag(variance))
+  se[c(1, length(quantiles))] <- 0
 
   if (empirical) {
     ordincvar <- order(incvar)
@@ -452,29 +495,55 @@ svylorenz.svyrep.design <- function(formula , design, quantiles = seq(0,1,.1), e
   CI.L <- as.numeric( L.p - se * qnorm( alpha, mean = 0, sd = 1, lower.tail = FALSE ) )
   CI.U <- as.numeric( L.p + se * qnorm( alpha, mean = 0, sd = 1, lower.tail = FALSE ) )
 
-  cis <- array( rbind(CI.L,CI.U), dim = c(2, length(quantiles)), dimnames = list( c( "(lower", "upper)" ), as.character(quantiles) ) )
+  cis <- structure(rbind(CI.L,CI.U), .Dim = c(2L, length(quantiles), 1L), .Dimnames = list(c("(lower", "upper)"), as.character(quantiles),  as.character(formula)[2]))
   rval <- t( matrix( data = L.p, nrow = length(quantiles), dimnames = list( as.character( quantiles ), as.character(formula)[2] ) ) )
   rval <- list(quantiles = rval, CIs = cis)
+  attr(rval, "var") <- variance
   attr(rval, "SE") <- se
-  class(rval) <- "svyquantile"
+  class(rval) <- c( "cvyquantile" , "svyquantile" )
 
 
   if ( plot ) {
 
-    if ( !add ) svylorenzplot_wrap( ... )
+    plot_dots <- list( ... )
+
+    # remove `deff` argument sent by svyby
+    if( 'deff' %in% names( plot_dots ) ) plot_dots$deff <- NULL
+
+    if ( !add ) do.call( svylorenzplot_wrap , plot_dots )
 
     if( any( c( 'xlim' , 'ylim' , 'col' ) %in% names( list( ... ) ) ) ) stop( "xlim=, ylim=, and col= parameters are fixed within `svylorenz`.  use curve.col= to change the line color" )
-    abline( 0 , 1 , ylim = c( 0 , 1 ) , ... )
-    if( empirical ) svylorenzlines_wrap( E_p , E_L.p , col = curve.col , ... )
-    svylorenzpoints_wrap( quantiles , L.p , col = curve.col , ... )
+    abline( 0 , 1 , ylim = c( 0 , 1 ) , plot_dots )
+
+    if( empirical ) {
+      lines_dots <- plot_dots
+      lines_dots$x <- E_p
+      lines_dots$y <- E_L.p
+      lines_dots$col = curve.col
+      do.call( svylorenzlines_wrap , lines_dots )
+    }
+
+    points_dots <- plot_dots
+    points_dots$x <- quantiles
+    points_dots$y <- L.p
+    points_dots$col <- curve.col
+
+    do.call( svylorenzpoints_wrap , points_dots )
 
     if (ci) {
       X.Vec <- as.numeric( c(quantiles, tail(quantiles, 1), rev(quantiles), quantiles[1]) )
       Y.Vec <- as.numeric( c( CI.L, tail(CI.U, 1), rev(CI.U), CI.L[1] ) )
-      svylorenzpolygon_wrap(X.Vec, Y.Vec, col = adjustcolor( curve.col, alpha.f = .2), border = NA , ...)
 
+      polygon_dots <- plot_dots
+      polygon_dots$x <- X.Vec
+      polygon_dots$y <- Y.Vec
+      polygon_dots$col <- adjustcolor( curve.col, alpha.f = .2)
+      polygon_dots$border <- NA
+
+      do.call( svylorenzpolygon_wrap , polygon_dots )
 
     }
+
   }
 
   return(rval)
@@ -491,7 +560,7 @@ svylorenz.DBIsvydesign <- function (formula, design, ...)
     full_design <- attr( design , "full_design" )
 
     full_design$variables <- getvars(formula, attr( design , "full_design" )$db$connection, attr( design , "full_design" )$db$tablename,
-                                              updates = attr( design , "full_design" )$updates, subset = attr( design , "full_design" )$subset)
+                                     updates = attr( design , "full_design" )$updates, subset = attr( design , "full_design" )$subset)
 
     attr( design , "full_design" ) <- full_design
 
@@ -500,7 +569,7 @@ svylorenz.DBIsvydesign <- function (formula, design, ...)
   }
 
   design$variables <- getvars(formula, design$db$connection, design$db$tablename,
-                                       updates = design$updates, subset = design$subset)
+                              updates = design$updates, subset = design$subset)
 
   NextMethod("svylorenz", design)
 

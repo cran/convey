@@ -65,6 +65,7 @@
 #' svyatk( ~eqincome , subset(des_eusilc_rep_pos_inc, db040 == "Styria") )
 #' svyatk( ~eqincome , subset(des_eusilc_rep_pos_inc, db040 == "Styria"), epsilon = 2 )
 #'
+#' \dontrun{
 #'
 #' # linearized design using a variable with missings (but subsetted to remove negatives)
 #' svyatk( ~py010n , subset(des_eusilc, py010n > 0 | is.na(py010n)), epsilon = .5 )
@@ -74,10 +75,6 @@
 #' svyatk( ~py010n , subset(des_eusilc_rep, py010n > 0 | is.na(py010n)), epsilon = .5 )
 #' svyatk( ~py010n , subset(des_eusilc_rep, py010n > 0 | is.na(py010n)), epsilon = .5 , na.rm=TRUE )
 #'
-#'
-#' # library(MonetDBLite) is only available on 64-bit machines,
-#' # so do not run this block of code in 32-bit R
-#' \dontrun{
 #'
 #' # database-backed design
 #' library(MonetDBLite)
@@ -120,6 +117,8 @@
 #'
 #' dbRemoveTable( conn , 'eusilc' )
 #'
+#' dbDisconnect( conn , shutdown = TRUE )
+#'
 #' }
 #'
 #' @export
@@ -157,19 +156,14 @@ svyatk.survey.design <-
 			rval <- NA
 			variance <- as.matrix(NA)
 			colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-			class(rval) <- "cvystat"
+			class(rval) <- c( "cvystat" , "svystat" )
 			attr(rval, "var") <- variance
 			attr(rval, "statistic") <- "atkinson"
 			attr(rval,"epsilon")<- epsilon
 			return(rval)
 		}
 
-		if ( any(incvar[w != 0] <= 0) ){
-			warning("The function is defined for strictly positive incomes only.  Discarding observations with zero or negative incomes.")
-			nps <- incvar <= 0
-			design <- design[!nps]
-			if (length(nps) > length(design$prob)) incvar <- incvar[!nps] else incvar[ nps ] <- 0
-		}
+		if ( any(incvar[w != 0] <= 0) ) stop( "The Atkinson Index is defined for strictly positive variables only.  Negative and zero values not allowed." )
 
 		w <- 1/design$prob
 
@@ -179,7 +173,7 @@ svyatk.survey.design <-
 		if ( is.na(rval) ) {
 			variance <- as.matrix(NA)
 			colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-			class(rval) <- "cvystat"
+			class(rval) <- c( "cvystat" , "svystat" )
 			attr(rval, "var") <- variance
 			attr(rval, "statistic") <- "atkinson"
 			attr(rval,"epsilon")<- epsilon
@@ -223,7 +217,7 @@ svyatk.survey.design <-
 		variance <- survey::svyrecvar(v/design$prob, design$cluster, design$strata, design$fpc, postStrata = design$postStrata)
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svystat" )
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "atkinson"
 		attr(rval,"epsilon")<- epsilon
@@ -250,15 +244,7 @@ svyatk.svyrep.design <-
 
 		ws <- weights(design, "sampling")
 
-		if ( any( incvar[ws != 0] <= 0, na.rm = TRUE ) ) {
-
-			warning( "The function is defined for strictly positive incomes only.  Discarding observations with zero or negative incomes.")
-			nps <- incvar <= 0
-			nps[ is.na(nps) ] <- TRUE
-			design <- design[ !nps ]
-			if (length(nps) > length(design$prob)) incvar <- incvar[ !nps ] else incvar[ nps ] <- 0
-
-		}
+		if ( any( incvar[ws != 0] <= 0, na.rm = TRUE ) ) stop( "The Atkinson Index is defined for strictly positive variables only.  Negative and zero values not allowed." )
 
 		ws <- weights(design, "sampling")
 		rval <- calc.atkinson( x = incvar, weights = ws, epsilon = epsilon)
@@ -269,7 +255,7 @@ svyatk.svyrep.design <-
 
 			variance <- as.matrix(NA)
 			colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-			class(rval) <- "cvystat"
+			class(rval) <- c( "cvystat" , "svrepstat" )
 			attr(rval, "var") <- variance
 			attr(rval, "statistic") <- "atkinson"
 			attr(rval,"epsilon")<- epsilon
@@ -285,7 +271,7 @@ svyatk.svyrep.design <-
 		}
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svrepstat" )
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "atkinson"
 		attr(rval,"epsilon")<- epsilon

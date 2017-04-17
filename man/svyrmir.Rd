@@ -2,18 +2,20 @@
 % Please edit documentation in R/svyrmir.R
 \name{svyrmir}
 \alias{svyrmir}
-\alias{svyrmir.DBIsvydesign}
 \alias{svyrmir.survey.design}
 \alias{svyrmir.svyrep.design}
+\alias{svyrmir.DBIsvydesign}
 \title{Relative median income ratio}
 \usage{
 svyrmir(formula, design, ...)
 
 \method{svyrmir}{survey.design}(formula, design, age, agelim = 65,
-  order = 0.5, na.rm = FALSE, med_old = FALSE, med_young = FALSE, ...)
+  quantiles = 0.5, na.rm = FALSE, med_old = FALSE, med_young = FALSE,
+  ...)
 
 \method{svyrmir}{svyrep.design}(formula, design, age, agelim = 65,
-  order = 0.5, na.rm = FALSE, med_old = FALSE, med_young = FALSE, ...)
+  quantiles = 0.5, na.rm = FALSE, med_old = FALSE, med_young = FALSE,
+  ...)
 
 \method{svyrmir}{DBIsvydesign}(formula, design, age, ...)
 }
@@ -22,13 +24,13 @@ svyrmir(formula, design, ...)
 
 \item{design}{a design object of class \code{survey.design} or class \code{svyrep.design} from the \code{survey} library.}
 
-\item{...}{future expansion}
+\item{...}{arguments passed on to `survey::svyquantile`}
 
 \item{age}{formula defining the variable age}
 
 \item{agelim}{the age cutpoint, the default is 65}
 
-\item{order}{income quantile order, usually .5}
+\item{quantiles}{income quantile, usually .5 (median)}
 
 \item{na.rm}{Should cases with missing values be dropped?}
 
@@ -67,17 +69,14 @@ des_eusilc_rep <- convey_prep(des_eusilc_rep)
 
 svyrmir( ~eqincome , design = des_eusilc_rep, age= ~age, med_old = TRUE )
 
+\dontrun{
+
 # linearized design using a variable with missings
 svyrmir( ~ eqincome_miss , design = des_eusilc,age= ~age)
 svyrmir( ~ eqincome_miss , design = des_eusilc , age= ~age, na.rm = TRUE )
 # replicate-weighted design using a variable with missings
 svyrmir( ~ eqincome_miss , design = des_eusilc_rep,age= ~age )
 svyrmir( ~ eqincome_miss , design = des_eusilc_rep ,age= ~age, na.rm = TRUE )
-
-
-# library(MonetDBLite) is only available on 64-bit machines,
-# so do not run this block of code in 32-bit R
-\dontrun{
 
 # database-backed design
 library(MonetDBLite)
@@ -89,7 +88,7 @@ dbWriteTable( conn , 'eusilc' , eusilc )
 dbd_eusilc <-
 	svydesign(
 		ids = ~rb030 ,
-		strata = ~db040 , 
+		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
 		dbname=dbfolder,
@@ -102,11 +101,10 @@ svyrmir( ~eqincome , design = dbd_eusilc , age = ~age )
 
 dbRemoveTable( conn , 'eusilc' )
 
-}
+dbDisconnect( conn , shutdown = TRUE )
 
 }
-\author{
-Djalma Pessoa and Anthony Damico
+
 }
 \references{
 Guillaume Osier (2009). Variance estimation for complex indicators
@@ -121,5 +119,7 @@ URL \url{http://www5.statcan.gc.ca/bsolc/olc-cel/olc-cel?lang=eng&catno=12-001-X
 \seealso{
 \code{\link{svyarpt}}
 }
+\author{
+Djalma Pessoa and Anthony Damico
+}
 \keyword{survey}
-

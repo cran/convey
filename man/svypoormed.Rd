@@ -2,17 +2,17 @@
 % Please edit documentation in R/svypoormed.R
 \name{svypoormed}
 \alias{svypoormed}
-\alias{svypoormed.DBIsvydesign}
 \alias{svypoormed.survey.design}
 \alias{svypoormed.svyrep.design}
+\alias{svypoormed.DBIsvydesign}
 \title{Relative median poverty gap}
 \usage{
 svypoormed(formula, design, ...)
 
-\method{svypoormed}{survey.design}(formula, design, order = 0.5,
+\method{svypoormed}{survey.design}(formula, design, quantiles = 0.5,
   percent = 0.6, na.rm = FALSE, ...)
 
-\method{svypoormed}{svyrep.design}(formula, design, order = 0.5,
+\method{svypoormed}{svyrep.design}(formula, design, quantiles = 0.5,
   percent = 0.6, na.rm = FALSE, ...)
 
 \method{svypoormed}{DBIsvydesign}(formula, design, ...)
@@ -22,9 +22,9 @@ svypoormed(formula, design, ...)
 
 \item{design}{a design object of class \code{survey.design} or class \code{svyrep.design} from the \code{survey} library.}
 
-\item{...}{future expansion}
+\item{...}{arguments passed on to `survey::svyquantile`}
 
-\item{order}{income quantile order, usually .5}
+\item{quantiles}{income quantile, usually .5 (median)}
 
 \item{percent}{fraction of the quantile, usually .60}
 
@@ -40,7 +40,7 @@ Estimate the median of incomes less than the at-risk-of-poverty threshold (\code
 you must run the \code{convey_prep} function on your survey design object immediately after creating it with the \code{svydesign} or \code{svrepdesign} function.
 }
 \examples{
-\dontrun{
+
 library(survey)
 library(vardpoor)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
@@ -57,15 +57,14 @@ des_eusilc_rep <- convey_prep( des_eusilc_rep )
 
 svypoormed( ~eqincome , design = des_eusilc_rep )
 
+\dontrun{
+
 # linearized design using a variable with missings
 svypoormed( ~ py010n , design = des_eusilc )
 svypoormed( ~ py010n , design = des_eusilc , na.rm = TRUE )
 # replicate-weighted design using a variable with missings
 svypoormed( ~ py010n , design = des_eusilc_rep )
 svypoormed( ~ py010n , design = des_eusilc_rep , na.rm = TRUE )
-
-# library(MonetDBLite) is only available on 64-bit machines,
-# so do not run this block of code in 32-bit R
 
 # database-backed design
 library(MonetDBLite)
@@ -77,7 +76,7 @@ dbWriteTable( conn , 'eusilc' , eusilc )
 dbd_eusilc <-
 	svydesign(
 		ids = ~rb030 ,
-		strata = ~db040 , 
+		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
 		dbname=dbfolder,
@@ -90,11 +89,10 @@ svypoormed( ~ eqincome , design = dbd_eusilc )
 
 dbRemoveTable( conn , 'eusilc' )
 
-}
+dbDisconnect( conn , shutdown = TRUE )
 
 }
-\author{
-Djalma Pessoa and Anthony Damico
+
 }
 \references{
 Guillaume Osier (2009). Variance estimation for complex indicators
@@ -109,5 +107,7 @@ URL \url{http://www5.statcan.gc.ca/bsolc/olc-cel/olc-cel?lang=eng&catno=12-001-X
 \seealso{
 \code{\link{svyarpt}}
 }
+\author{
+Djalma Pessoa and Anthony Damico
+}
 \keyword{survey}
-

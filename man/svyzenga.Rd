@@ -2,10 +2,10 @@
 % Please edit documentation in R/svyzenga.R
 \name{svyzenga}
 \alias{svyzenga}
-\alias{svyzenga.DBIsvydesign}
 \alias{svyzenga.survey.design}
 \alias{svyzenga.svyrep.design}
-\title{Zenga index}
+\alias{svyzenga.DBIsvydesign}
+\title{Zenga index (EXPERIMENTAL)}
 \usage{
 svyzenga(formula, design, ...)
 
@@ -33,8 +33,10 @@ Estimate the Zenga index, a measure of inequality
 \details{
 you must run the \code{convey_prep} function on your survey design object immediately after creating it with the \code{svydesign} or \code{svrepdesign} function.
 }
+\note{
+This function is experimental and is subject to changes in later versions.
+}
 \examples{
-\dontrun{
 library(survey)
 library(vardpoor)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
@@ -47,29 +49,23 @@ des_eusilc <- convey_prep(des_eusilc)
 des_eusilc_rep <- as.svrepdesign( des_eusilc , type = "bootstrap" )
 des_eusilc_rep <- convey_prep(des_eusilc_rep)
 
-# subset all designs to positive income and non-missing records only
-des_eusilc_pos_inc <- subset( des_eusilc , eqincome > 0 )
-des_eusilc_rep_pos_inc <- subset( des_eusilc_rep , eqincome > 0 )
-
 
 # variable without missing values
-svyzenga(~eqincome, des_eusilc_pos_inc)
-svyzenga(~eqincome, des_eusilc_rep_pos_inc)
+svyzenga(~eqincome, des_eusilc)
+svyzenga(~eqincome, des_eusilc_rep)
 
 # subsetting:
-svyzenga(~eqincome, subset( des_eusilc_pos_inc, db040 == "Styria"))
-svyzenga(~eqincome, subset( des_eusilc_rep_pos_inc, db040 == "Styria"))
+svyzenga(~eqincome, subset( des_eusilc, db040 == "Styria"))
+svyzenga(~eqincome, subset( des_eusilc_rep, db040 == "Styria"))
 
-# variable with with missings (but subsetted to remove negatives)
-# svyzenga(~py010n, subset( des_eusilc, py010n > 0 | is.na(py010n)) )
-# svyzenga(~py010n, subset( des_eusilc_rep, py010n > 0 | is.na(py010n)) )
+\dontrun{
 
-# svyzenga(~py010n, subset( des_eusilc, py010n > 0 | is.na(py010n)), na.rm = TRUE)
-# svyzenga(~py010n, subset( des_eusilc_rep, py010n > 0 | is.na(py010n)), na.rm = TRUE)
+# variable with with missings
+svyzenga(~py010n, des_eusilc )
+svyzenga(~py010n, des_eusilc_rep )
 
-
-# library(MonetDBLite) is only available on 64-bit machines,
-# so do not run this block of code in 32-bit R
+svyzenga(~py010n, des_eusilc, na.rm = TRUE )
+svyzenga(~py010n, des_eusilc_rep, na.rm = TRUE )
 
 # database-backed design
 library(MonetDBLite)
@@ -91,29 +87,29 @@ dbd_eusilc <-
 dbd_eusilc <- convey_prep( dbd_eusilc )
 
 
-# subset all designs to positive income and non-missing records only
-dbd_eusilc_pos_inc <- subset( dbd_eusilc , eqincome > 0 )
-
 # variable without missing values
-svyzenga(~eqincome, dbd_eusilc_pos_inc)
+svyzenga(~eqincome, dbd_eusilc)
 
 # subsetting:
-svyzenga(~eqincome, subset( dbd_eusilc_pos_inc, db040 == "Styria"))
+svyzenga(~eqincome, subset( dbd_eusilc, db040 == "Styria"))
 
-# variable with with missings (but subsetted to remove negatives)
-# svyzenga(~py010n, subset( dbd_eusilc, py010n > 0 | is.na(py010n)) )
+# variable with with missings
+svyzenga(~py010n, dbd_eusilc )
 
-# svyzenga(~py010n, subset( dbd_eusilc, py010n > 0 | is.na(py010n)), na.rm = TRUE)
+svyzenga(~py010n, dbd_eusilc, na.rm = TRUE )
+
 
 dbRemoveTable( conn , 'eusilc' )
 
+dbDisconnect( conn , shutdown = TRUE )
+
 }
 
 }
-\author{
-Guilherme Jacob, Djalma Pessoa and Anthony Damico
-}
 \references{
+Lucio Barabesi, Giancarlo Diana and Pier Francesco Perri (2016). Linearization of inequality indexes in the design-based framework.
+Statistics. URL \url{http://www.tandfonline.com/doi/pdf/10.1080/02331888.2015.1135924}.
+
 Matti Langel (2012). Measuring inequality in finite population sampling.
 PhD thesis: Universite de Neuchatel,
 URL \url{https://doc.rero.ch/record/29204/files/00002252.pdf}.
@@ -121,5 +117,7 @@ URL \url{https://doc.rero.ch/record/29204/files/00002252.pdf}.
 \seealso{
 \code{\link{svygini}}
 }
+\author{
+Guilherme Jacob, Djalma Pessoa and Anthony Damico
+}
 \keyword{survey}
-

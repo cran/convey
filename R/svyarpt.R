@@ -4,10 +4,10 @@
 #'
 #' @param formula a formula specifying the income variable
 #' @param design a design object of class \code{survey.design} or class \code{svyrep.design} from the \code{survey} library.
-#' @param order income quantile order, usually .50 (median)
+#' @param quantiles income quantile quantiles, usually .50 (median)
 #' @param percent fraction of the quantile, usually .60
 #' @param na.rm Should cases with missing values be dropped?
-#' @param ... future expansion
+#' @param ... arguments passed on to `survey::svyquantile`
 #'
 #' @details you must run the \code{convey_prep} function on your survey design object immediately after creating it with the \code{svydesign} or \code{svrepdesign} function.
 #'
@@ -45,6 +45,8 @@
 #' des_eusilc_rep <- convey_prep( des_eusilc_rep )
 #' svyarpt( ~eqincome , design = des_eusilc_rep )
 #'
+#' \dontrun{
+#'
 #' # linearized design using a variable with missings
 #' svyarpt( ~ py010n , design = des_eusilc )
 #' svyarpt( ~ py010n , design = des_eusilc , na.rm = TRUE )
@@ -52,10 +54,6 @@
 #' svyarpt( ~ py010n , design = des_eusilc_rep )
 #' svyarpt( ~ py010n , design = des_eusilc_rep , na.rm = TRUE )
 #'
-#'
-#' # library(MonetDBLite) is only available on 64-bit machines,
-#' # so do not run this block of code in 32-bit R
-#' \dontrun{
 #'
 #' # database-backed design
 #' library(MonetDBLite)
@@ -67,18 +65,20 @@
 #' dbd_eusilc <-
 #' 	svydesign(
 #' 		ids = ~rb030 ,
-#' 		strata = ~db040 , 
+#' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
 #' 		dbname=dbfolder,
 #' 		dbtype="MonetDBLite"
 #' 	)
-#' 
+#'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
 #'
 #' svyarpt( ~ eqincome , design = dbd_eusilc )
 #'
 #' dbRemoveTable( conn , 'eusilc' )
+#'
+#' dbDisconnect( conn , shutdown = TRUE )
 #'
 #' }
 #'
@@ -95,7 +95,7 @@ svyarpt <-
 #' @rdname svyarpt
 #' @export
 svyarpt.survey.design <-
-	function(formula, design, order = 0.5, percent = 0.6,  na.rm = FALSE,...) {
+	function(formula, design, quantiles = 0.5, percent = 0.6,  na.rm = FALSE,...) {
 
 		if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your linearized survey design object immediately after creating it with the svydesign() function.")
 
@@ -113,8 +113,8 @@ svyarpt.survey.design <-
 			else incvar[nas] <- 0
 		}
 
-		ind<- names(design$prob)
-
+		if( is.null( names( design$prob ) ) ) ind <- as.character( seq( length( design$prob ) ) ) else ind <- names(design$prob)
+		
 		w <- 1/design$prob
 
 		incvec <- model.frame(formula, full_design$variables, na.action = na.pass)[[1]]
@@ -127,24 +127,26 @@ svyarpt.survey.design <-
 			else incvec[nas] <- 0
 		}
 
-		ncom <- names(full_design$prob)
+		if( is.null( names( full_design$prob ) ) ) ncom <- as.character( seq( length( full_design$prob ) ) ) else ncom <- names(full_design$prob)
+		
 		wf <- 1/full_design$prob
 		htot <- h_fun(incvec, wf)
-		q_alpha <- survey::svyquantile(x = formula, design = design, quantiles = order,
-		method = "constant", na.rm = na.rm)
+		q_alpha <- survey::svyquantile(x = formula, design = design, quantiles = quantiles,
+		method = "constant", na.rm = na.rm,...)
 		q_alpha <- as.vector(q_alpha)
 		rval <- percent * q_alpha
 		Fprime <- densfun(formula = formula, design = design, q_alpha, h=htot, FUN = "F", na.rm=na.rm)
 		N <- sum(w)
-		ID <- rep(1, length(incvec))*(ncom %in% ind)
-		linquant<- -(1/(N * Fprime)) * ID*((incvec <= q_alpha) - order)
+		if (sum(1/design$prob==0) > 0) ID <- 1*(1/design$prob!=0) else
+		  ID <- 1 * ( ncom %in% ind )
+		linquant<- -(1/(N * Fprime)) * ID*((incvec <= q_alpha) - quantiles)
 		lin <- percent * linquant
 
 		variance <- survey::svyrecvar(lin/full_design$prob, full_design$cluster,
 		full_design$strata, full_design$fpc, postStrata = full_design$postStrata)
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svystat" )
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "arpt"
 		attr(rval, "lin") <- lin
@@ -154,7 +156,7 @@ svyarpt.survey.design <-
 #' @rdname svyarpt
 #' @export
 svyarpt.svyrep.design <-
-	function(formula, design, order = 0.5, percent = 0.6, na.rm = FALSE, ...) {
+	function(formula, design, quantiles = 0.5, percent = 0.6, na.rm = FALSE, ...) {
 
 		if (is.null(attr(design, "full_design")))
 		stop("you must run the ?convey_prep function on your replicate-weighted survey design object immediately after creating it with the svrepdesign() function.")
@@ -175,18 +177,18 @@ svyarpt.svyrep.design <-
 		}
 
 		w <- weights(design, "sampling")
-		quant_val <- computeQuantiles(incvar, w, p = order)
+		quant_val <- computeQuantiles(incvar, w, p = quantiles)
 		quant_val <- as.vector(quant_val)
 		rval <- percent * quant_val
 		ww <- weights(design, "analysis")
-		qq <- apply(ww, 2, function(wi) 0.6 * computeQuantiles(incvar, wi, p = order))
+		qq <- apply(ww, 2, function(wi) 0.6 * computeQuantiles(incvar, wi, p = quantiles))
 		if(anyNA(qq))variance <- NA
 		else variance <- survey::svrVar(qq, design$scale, design$rscales, mse = design$mse, coef = rval)
 
 		variance <- as.matrix( variance )
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svrepstat" )
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "arpt"
 		rval

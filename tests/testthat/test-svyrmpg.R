@@ -2,8 +2,7 @@ context("Rmpg output")
 library(vardpoor)
 library(survey)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
-dati = data.frame(1:nrow(eusilc), eusilc)
-colnames(dati)[1] <- "IDd"
+dati = data.frame(IDd = seq( 10000 , 10000 + nrow( eusilc ) - 1 ) , eusilc)
 
 SE_lin2 <- function(t,des){
   variance<-survey::svyrecvar(t/des$prob, des$cluster,des$strata, des$fpc,postStrata = des$postStrata)
@@ -12,9 +11,9 @@ SE_lin2 <- function(t,des){
 des_eusilc <- svydesign(ids = ~rb030, strata =~db040,  weights = ~rb050, data = eusilc)
 
 des_eusilc <- convey_prep(des_eusilc)
-dati <- data.frame(IDd = 1:nrow(eusilc), eusilc)
+
 vardpoor_linrmpgw <- linrmpg(Y="eqincome", id="IDd", weight = "rb050", Dom=NULL,
-  dataset=dati, percentage=60, order_quant=50)
+  dataset=dati, percentage=60, order_quant=50L)
 vardest<- vardpoor_linrmpgw$value
 attributes(vardest)<- NULL
 vardest<- unlist(vardest)
@@ -26,7 +25,7 @@ attributes(convest)<-NULL
 convse<- SE(fun_svyrmpgw)
 attributes(convse)<-NULL
 #domain
-vardpoor_rmpgd <- linrmpg(Y = "eqincome", id = "IDd", weight = "rb050", Dom = c("db040"),    dataset = dati)
+vardpoor_rmpgd <- linrmpg(Y = "eqincome", id = "IDd", weight = "rb050", Dom = c("hsize"),    dataset = dati)
 #  point estimates
 vardestd<-unlist(vardpoor_rmpgd$value$rmpg)
 #  se estimates
@@ -34,7 +33,7 @@ varsed<-sapply(data.frame(vardpoor_rmpgd$lin)[,2:10],function(t) SE_lin2(t,des_e
 attributes (varsed) <- NULL
 # library convey
 
-fun_rmpgd <- svyby(~eqincome, by = ~db040, design = des_eusilc,
+fun_rmpgd <- svyby(~eqincome, by = ~hsize, design = subset(des_eusilc,hsize<8),
 FUN = svyrmpg, deff = FALSE)
 
 convestd<- coef(fun_rmpgd)
@@ -46,6 +45,8 @@ convsed<- SE(fun_rmpgd)
 test_that("compare results convey vs vardpoor",{
   expect_equal(vardest,100*convest)
   expect_equal(varse, 100*convse)
-  expect_equal(vardestd, 100*convestd)
-  expect_equal(varsed, 100*convsed )
+  expect_equal(vardestd[1:7], 100*convestd)
+  expect_equal(vardestd[8:9], as.numeric(c(NA,NA)))
+  expect_equal(varsed[1:7], 100*convsed )
+  expect_equal(varsed[8:9], c(0,0) )
 })

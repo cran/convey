@@ -8,7 +8,7 @@
 #' @param alpha the order of the quantile
 #' @param quantile return the upper bound of the lower tail
 #' @param na.rm Should cases with missing values be dropped?
-#' @param ... future expansion
+#' @param ... arguments passed on to `survey::svyquantile`
 #'
 #' @return Object of class "\code{cvystat}", which are vectors with a "\code{var}" attribute giving the variance and a "\code{statistic}" attribute giving the name of the statistic.
 #'
@@ -42,17 +42,15 @@
 #' des_eusilc_rep <- convey_prep(des_eusilc_rep)
 #'
 #' svyisq( ~eqincome , design = des_eusilc_rep, .20 , quantile = TRUE )
+#'
+#' \dontrun{
+#'
 #' # linearized design using a variable with missings
 #' svyisq( ~ py010n , design = des_eusilc, .20 )
 #' svyisq( ~ py010n , design = des_eusilc , .20, na.rm = TRUE )
 #' # replicate-weighted design using a variable with missings
 #' svyisq( ~ py010n , design = des_eusilc_rep, .20 )
 #' svyisq( ~ py010n , design = des_eusilc_rep , .20,  na.rm = TRUE )
-#'
-#'
-#' # library(MonetDBLite) is only available on 64-bit machines,
-#' # so do not run this block of code in 32-bit R
-#' \dontrun{
 #'
 #' # database-backed design
 #' library(MonetDBLite)
@@ -76,6 +74,8 @@
 #' svyisq( ~ eqincome , design = dbd_eusilc, .20 )
 #'
 #' dbRemoveTable( conn , 'eusilc' )
+#'
+#' dbDisconnect( conn , shutdown = TRUE )
 #'
 #' }
 #'
@@ -109,7 +109,7 @@ svyisq.survey.design <-
 		N <- sum(w)
 		h <- h_fun(incvar, w)
 
-		q_alpha <- survey::svyquantile(x = formula, design = design, quantiles = alpha, method = "constant", na.rm = na.rm)
+		q_alpha <- survey::svyquantile(x = formula, design = design, quantiles = alpha, method = "constant", na.rm = na.rm,...)
 		q_alpha <- as.vector(q_alpha)
 
 		Fprime0 <- densfun(formula = formula, design = design, q_alpha, h=h, FUN = "F", na.rm=na.rm)
@@ -124,7 +124,7 @@ svyisq.survey.design <-
 		variance <- survey::svyrecvar(isqalpha/design$prob, design$cluster, design$strata, design$fpc, postStrata = design$postStrata)
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svystat" )
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "isq"
 		attr(rval, "lin") <- isqalpha
@@ -168,7 +168,7 @@ svyisq.svyrep.design <-
 		variance <- as.matrix( variance )
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svrepstat" )
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "isq"
 		attr(rval, "lin") <- NA

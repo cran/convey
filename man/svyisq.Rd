@@ -2,9 +2,9 @@
 % Please edit documentation in R/svyisq.R
 \name{svyisq}
 \alias{svyisq}
-\alias{svyisq.DBIsvydesign}
 \alias{svyisq.survey.design}
 \alias{svyisq.svyrep.design}
+\alias{svyisq.DBIsvydesign}
 \title{Linearization of the total below a quantile}
 \usage{
 svyisq(formula, design, ...)
@@ -22,7 +22,7 @@ svyisq(formula, design, ...)
 
 \item{design}{a design object of class \code{survey.design} or class \code{svyrep.design} from the \code{survey} library.}
 
-\item{...}{future expansion}
+\item{...}{arguments passed on to `survey::svyquantile`}
 
 \item{alpha}{the order of the quantile}
 
@@ -53,17 +53,15 @@ des_eusilc_rep <- as.svrepdesign( des_eusilc , type = "bootstrap" )
 des_eusilc_rep <- convey_prep(des_eusilc_rep)
 
 svyisq( ~eqincome , design = des_eusilc_rep, .20 , quantile = TRUE )
+
+\dontrun{
+
 # linearized design using a variable with missings
 svyisq( ~ py010n , design = des_eusilc, .20 )
 svyisq( ~ py010n , design = des_eusilc , .20, na.rm = TRUE )
 # replicate-weighted design using a variable with missings
 svyisq( ~ py010n , design = des_eusilc_rep, .20 )
 svyisq( ~ py010n , design = des_eusilc_rep , .20,  na.rm = TRUE )
-
-
-# library(MonetDBLite) is only available on 64-bit machines,
-# so do not run this block of code in 32-bit R
-\dontrun{
 
 # database-backed design
 library(MonetDBLite)
@@ -88,11 +86,10 @@ svyisq( ~ eqincome , design = dbd_eusilc, .20 )
 
 dbRemoveTable( conn , 'eusilc' )
 
-}
+dbDisconnect( conn , shutdown = TRUE )
 
 }
-\author{
-Djalma Pessoa and Anthony Damico
+
 }
 \references{
 Guillaume Osier (2009). Variance estimation for complex indicators
@@ -107,5 +104,7 @@ URL \url{http://www5.statcan.gc.ca/bsolc/olc-cel/olc-cel?lang=eng&catno=12-001-X
 \seealso{
 \code{\link{svyarpr}}
 }
+\author{
+Djalma Pessoa and Anthony Damico
+}
 \keyword{survey}
-

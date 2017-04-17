@@ -2,18 +2,20 @@
 % Please edit documentation in R/svyrmpg.R
 \name{svyrmpg}
 \alias{svyrmpg}
-\alias{svyrmpg.DBIsvydesign}
 \alias{svyrmpg.survey.design}
 \alias{svyrmpg.svyrep.design}
+\alias{svyrmpg.DBIsvydesign}
 \title{Relative median poverty gap}
 \usage{
 svyrmpg(formula, design, ...)
 
-\method{svyrmpg}{survey.design}(formula, design, order = 0.5, percent = 0.6,
-  na.rm = FALSE, thresh = FALSE, poor_median = FALSE, ...)
+\method{svyrmpg}{survey.design}(formula, design, quantiles = 0.5,
+  percent = 0.6, na.rm = FALSE, thresh = FALSE, poor_median = FALSE,
+  ...)
 
-\method{svyrmpg}{svyrep.design}(formula, design, order = 0.5, percent = 0.6,
-  na.rm = FALSE, thresh = FALSE, poor_median = FALSE, ...)
+\method{svyrmpg}{svyrep.design}(formula, design, quantiles = 0.5,
+  percent = 0.6, na.rm = FALSE, thresh = FALSE, poor_median = FALSE,
+  ...)
 
 \method{svyrmpg}{DBIsvydesign}(formula, design, ...)
 }
@@ -24,7 +26,7 @@ svyrmpg(formula, design, ...)
 
 \item{...}{future expansion}
 
-\item{order}{income quantile order, usually .5}
+\item{quantiles}{income quantile, usually .5 (median)}
 
 \item{percent}{fraction of the quantile, usually .60}
 
@@ -44,7 +46,7 @@ Estimate the difference between the at-risk-of-poverty threshold (\code{arpt}) a
 you must run the \code{convey_prep} function on your survey design object immediately after creating it with the \code{svydesign} or \code{svrepdesign} function.
 }
 \examples{
-\dontrun{
+
 library(survey)
 library(vardpoor)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
@@ -61,6 +63,7 @@ des_eusilc_rep <- convey_prep( des_eusilc_rep )
 
 svyrmpg( ~eqincome , design = des_eusilc_rep, thresh = TRUE )
 
+\dontrun{
 
 # linearized design using a variable with missings
 svyrmpg( ~ py010n , design = des_eusilc )
@@ -68,9 +71,6 @@ svyrmpg( ~ py010n , design = des_eusilc , na.rm = TRUE )
 # replicate-weighted design using a variable with missings
 svyrmpg( ~ py010n , design = des_eusilc_rep )
 svyrmpg( ~ py010n , design = des_eusilc_rep , na.rm = TRUE )
-
-# library(MonetDBLite) is only available on 64-bit machines,
-# so do not run this block of code in 32-bit R
 
 # database-backed design
 library(MonetDBLite)
@@ -95,11 +95,10 @@ svyrmpg( ~ eqincome , design = dbd_eusilc )
 
 dbRemoveTable( conn , 'eusilc' )
 
-}
+dbDisconnect( conn , shutdown = TRUE )
 
 }
-\author{
-Djalma Pessoa and Anthony Damico
+
 }
 \references{
 Guillaume Osier (2009). Variance estimation for complex indicators
@@ -114,5 +113,7 @@ URL \url{http://www5.statcan.gc.ca/bsolc/olc-cel/olc-cel?lang=eng&catno=12-001-X
 \seealso{
 \code{\link{svyarpt}}
 }
+\author{
+Djalma Pessoa and Anthony Damico
+}
 \keyword{survey}
-

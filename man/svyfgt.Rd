@@ -2,19 +2,19 @@
 % Please edit documentation in R/svyfgt.R
 \name{svyfgt}
 \alias{svyfgt}
-\alias{svyfgt.DBIsvydesign}
 \alias{svyfgt.survey.design}
 \alias{svyfgt.svyrep.design}
+\alias{svyfgt.DBIsvydesign}
 \title{FGT measure of poverty}
 \usage{
 svyfgt(formula, design, ...)
 
 \method{svyfgt}{survey.design}(formula, design, g, type_thresh = "abs",
-  abs_thresh = NULL, percent = 0.6, order = 0.5, na.rm = FALSE,
+  abs_thresh = NULL, percent = 0.6, quantiles = 0.5, na.rm = FALSE,
   thresh = FALSE, ...)
 
 \method{svyfgt}{svyrep.design}(formula, design, g, type_thresh = "abs",
-  abs_thresh = NULL, percent = 0.6, order = 0.5, na.rm = FALSE,
+  abs_thresh = NULL, percent = 0.6, quantiles = 0.5, na.rm = FALSE,
   thresh = FALSE, ...)
 
 \method{svyfgt}{DBIsvydesign}(formula, design, ...)
@@ -26,16 +26,16 @@ svyfgt(formula, design, ...)
 
 \item{...}{passed to \code{svyarpr} and \code{svyarpt}}
 
-\item{g}{If 0 estimates the headcount ratio and if 1 the poverty gap index}
+\item{g}{If g=0 estimates the headcount ratio; If g=1 estimates the average normalised poverty gap, and if g=2 estimates the average squared normalised poverty gap}
 
 \item{type_thresh}{type of poverty threshold. If "abs" the threshold is fixed and given the value
-of abs_thresh; if "relq" it is given by percent times the order quantile; if "relm" it is percent times the mean.}
+of abs_thresh; if "relq" it is given by percent times the quantile; if "relm" it is percent times the mean.}
 
 \item{abs_thresh}{poverty threshold value if type_thresh is "abs"}
 
 \item{percent}{the multiple of the the quantile or mean used in the poverty threshold definition}
 
-\item{order}{the quantile order used used in the poverty threshold definition}
+\item{quantiles}{the quantile used used in the poverty threshold definition}
 
 \item{na.rm}{Should cases with missing values be dropped?}
 
@@ -91,9 +91,6 @@ svyfgt(~eqincome, des_eusilc_rep, g=0, type_thresh= "relm" , thresh = TRUE)
 # poverty gap index, poverty threshold equal to 0.6 times the mean
 svyfgt(~eqincome, des_eusilc_rep, g=1, type_thresh= "relm", thresh = TRUE)
 
-
-# library(MonetDBLite) is only available on 64-bit machines,
-# so do not run this block of code in 32-bit R
 \dontrun{
 
 # database-backed design
@@ -106,7 +103,7 @@ dbWriteTable( conn , 'eusilc' , eusilc )
 dbd_eusilc <-
 	svydesign(
 		ids = ~rb030 ,
-		strata = ~db040 , 
+		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
 		dbname=dbfolder,
@@ -131,11 +128,10 @@ svyfgt(~eqincome, dbd_eusilc, g=1, type_thresh= "relm")
 
 dbRemoveTable( conn , 'eusilc' )
 
-}
+dbDisconnect( conn , shutdown = TRUE )
 
 }
-\author{
-Djalma Pessoa and Anthony Damico
+
 }
 \references{
 Guillaume Osier (2009). Variance estimation for complex indicators
@@ -150,5 +146,7 @@ URL \url{http://www5.statcan.gc.ca/bsolc/olc-cel/olc-cel?lang=eng&catno=12-001-X
 \seealso{
 \code{\link{svyarpt}}
 }
+\author{
+Djalma Pessoa and Anthony Damico
+}
 \keyword{survey}
-

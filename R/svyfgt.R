@@ -5,11 +5,11 @@
 #' @param formula a formula specifying the income variable
 #' @param design a design object of class \code{survey.design} or class \code{svyrep.design} from the \code{survey} library.
 #' @param type_thresh type of poverty threshold. If "abs" the threshold is fixed and given the value
-#' of abs_thresh; if "relq" it is given by percent times the order quantile; if "relm" it is percent times the mean.
+#' of abs_thresh; if "relq" it is given by percent times the quantile; if "relm" it is percent times the mean.
 #' @param abs_thresh poverty threshold value if type_thresh is "abs"
-#' @param g If 0 estimates the headcount ratio and if 1 the poverty gap index
+#' @param g If g=0 estimates the headcount ratio; If g=1 estimates the average normalised poverty gap, and if g=2 estimates the average squared normalised poverty gap
 #' @param percent the multiple of the the quantile or mean used in the poverty threshold definition
-#' @param order the quantile order used used in the poverty threshold definition
+#' @param quantiles the quantile used used in the poverty threshold definition
 #' @param thresh return the poverty threshold value
 #' @param na.rm Should cases with missing values be dropped?
 #' @param ... passed to \code{svyarpr} and \code{svyarpt}
@@ -74,9 +74,6 @@
 #' # poverty gap index, poverty threshold equal to 0.6 times the mean
 #' svyfgt(~eqincome, des_eusilc_rep, g=1, type_thresh= "relm", thresh = TRUE)
 #'
-#'
-#' # library(MonetDBLite) is only available on 64-bit machines,
-#' # so do not run this block of code in 32-bit R
 #' \dontrun{
 #'
 #' # database-backed design
@@ -89,13 +86,13 @@
 #' dbd_eusilc <-
 #' 	svydesign(
 #' 		ids = ~rb030 ,
-#' 		strata = ~db040 , 
+#' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
 #' 		dbname=dbfolder,
 #' 		dbtype="MonetDBLite"
 #' 	)
-#' 
+#'
 #'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
 #'
@@ -114,13 +111,17 @@
 #'
 #' dbRemoveTable( conn , 'eusilc' )
 #'
+#' dbDisconnect( conn , shutdown = TRUE )
+#'
 #' }
 #'
 #' @export
 svyfgt <-
 	function(formula, design,  ...) {
 
-		if( !( list(...)[["g"]] %in% c( 0 , 1 ) ) ) stop( "g= must be 0 to estimate the headcount ratio or 1 to estimate the poverty index" )
+		if( !( 'g' %in% names(list(...)) ) ) stop( "g= parameter must be specified" )
+
+		if( !is.na( list(...)[["g"]] ) && !( ( list(...)[["g"]] == 0 ) | ( list(...)[["g"]] >= 1 ) ) ) stop( "g= must be 0 to estimate the headcount ratio or >=1 to estimate the poverty index" )
 
 		if( 'type_thresh' %in% names( list( ... ) ) && !( list(...)[["type_thresh"]] %in% c( 'relq' , 'abs' , 'relm' ) ) ) stop( 'type_thresh= must be "relq" "relm" or "abs".  see ?svyfgt for more detail.' )
 
@@ -133,7 +134,7 @@ svyfgt <-
 #' @rdname svyfgt
 #' @export
 svyfgt.survey.design <-
-  function(formula, design, g, type_thresh="abs",  abs_thresh=NULL, percent = .60, order = .50, na.rm = FALSE, thresh = FALSE, ...){
+  function(formula, design, g, type_thresh="abs",  abs_thresh=NULL, percent = .60, quantiles = .50, na.rm = FALSE, thresh = FALSE, ...){
 
 	if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your linearized survey design object immediately after creating it with the svydesign() function.")
 
@@ -160,7 +161,9 @@ svyfgt.survey.design <-
     }
 
     w <- 1/design$prob
-    ind <- names(design$prob)
+
+	if( is.null( names( design$prob ) ) ) ind <- as.character( seq( length( design$prob ) ) ) else ind <- names(design$prob)
+
     N <- sum(w)
 
     # if the class of the full_design attribute is just a TRUE, then the design is
@@ -176,27 +179,30 @@ svyfgt.survey.design <-
     }
 
     wf <- 1/full_design$prob
-    ncom <- names(full_design$prob)
-    htot <- h_fun(incvec, wf)
-    ID <- rep(1, length(incvec))* (ncom %in% ind)
+
+	if( is.null( names( full_design$prob ) ) ) ncom <- as.character( seq( length( full_design$prob ) ) ) else ncom <- names(full_design$prob)
+
+	htot <- h_fun(incvec, wf)
+    if (sum(1/design$prob==0) > 0) ID <- 1*(1/design$prob!=0) else
+    ID <- 1 * ( ncom %in% ind )
 
 
     # linearization
 
     if( type_thresh == 'relq' ){
 
-      ARPT <- svyarpt(formula = formula, full_design, order=order, percent=percent,  na.rm=na.rm, ...)
+      ARPT <- svyarpt(formula = formula, full_design, quantiles=quantiles, percent=percent,  na.rm=na.rm, ...)
       th <- coef(ARPT)
       arptlin <- attr(ARPT, "lin")
       rval <- sum(w*h(incvar,th,g))/N
-      ahat <- sum(ht(incvar,th,g))/N
+      ahat <- sum(w*ht(incvar,th,g))/N
 
       if( g == 0 ){
 
-        ARPR <- svyarpr(formula = formula, design, order=order, percent=percent,  na.rm=na.rm, ...)
+        ARPR <- svyarpr(formula = formula, design, quantiles=quantiles, percent=percent,  na.rm=na.rm, ...)
         fgtlin <- attr(ARPR,"lin")
 
-      } else fgtlin <- ( h( incvar , th , g ) - rval ) / N + ( ahat * arptlin )
+      } else fgtlin <-ID*( h( incvec , th , g ) - rval ) / N + ( ahat * arptlin )
 
     }
 
@@ -205,14 +211,14 @@ svyfgt.survey.design <-
       # thresh for the whole population
       th <- percent*sum(incvec*wf)/sum(wf)
       rval <- sum(w*h(incvar,th,g))/N
-      ahat <- sum(ht(incvar,th,g))/N
+      ahat <- sum(w*ht(incvar,th,g))/N
 
       if( g == 0 ){
 
         Fprime <- densfun(formula=formula, design = design, x= th, FUN = "F", na.rm = na.rm )
-        fgtlin<- (h(incvar,th,g)-rval + Fprime*(incvar-th))/N
+        fgtlin<- ID*(h(incvec,th,g)-rval + Fprime*(incvec-th))/N
 
-      } else fgtlin <-( h( incvar , th , g ) - rval + ( ( percent * incvar ) - th ) * ahat ) / N
+      } else fgtlin <-ID*( h( incvec , th , g ) - rval + ( ( percent * incvec ) - th ) * ahat ) / N
 
     }
 
@@ -231,7 +237,7 @@ svyfgt.survey.design <-
 
 
     colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-    class(rval) <- "cvystat"
+    class(rval) <- c( "cvystat" , "svystat" )
     attr(rval, "var") <- variance
     attr(rval, "statistic") <- paste0("fgt",g)
     attr(rval, "lin") <- fgtlin
@@ -245,7 +251,7 @@ svyfgt.survey.design <-
 #' @rdname svyfgt
 #' @export
 svyfgt.svyrep.design <-
-	function(formula, design, g, type_thresh="abs", abs_thresh=NULL, percent = .60, order = .50, na.rm = FALSE, thresh = FALSE,...) {
+	function(formula, design, g, type_thresh="abs", abs_thresh=NULL, percent = .60, quantiles = .50, na.rm = FALSE, thresh = FALSE,...) {
 
 		if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your replicate-weighted survey design object immediately after creating it with the svrepdesign() function.")
 
@@ -294,7 +300,7 @@ svyfgt.svyrep.design <-
 		ind<- row.names(df)
 
 		# poverty threshold
-		if(type_thresh=='relq') th <- percent * computeQuantiles( incvec, wsf, p = order)
+		if(type_thresh=='relq') th <- percent * computeQuantiles( incvec, wsf, p = quantiles)
 		if(type_thresh=='relm') th <- percent*sum(incvec*wsf)/sum(wsf)
 		if(type_thresh=='abs') th <- abs_thresh
 
@@ -316,7 +322,7 @@ svyfgt.svyrep.design <-
 		variance <- as.matrix( variance )
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svrepstat" )
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- paste0("fgt",g)
 		attr(rval, "lin") <- NA

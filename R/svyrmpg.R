@@ -5,7 +5,7 @@
 #'
 #' @param formula a formula specifying the income variable
 #' @param design a design object of class \code{survey.design} or class \code{svyrep.design} from the \code{survey} library.
-#' @param order income quantile order, usually .5
+#' @param quantiles income quantile, usually .5 (median)
 #' @param percent fraction of the quantile, usually .60
 #' @param na.rm Should cases with missing values be dropped?
 #' @param thresh return the poverty poverty threshold
@@ -32,7 +32,7 @@
 #' @keywords survey
 #'
 #' @examples
-#' \dontrun{
+#'
 #' library(survey)
 #' library(vardpoor)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
@@ -49,6 +49,7 @@
 #'
 #' svyrmpg( ~eqincome , design = des_eusilc_rep, thresh = TRUE )
 #'
+#' \dontrun{
 #'
 #' # linearized design using a variable with missings
 #' svyrmpg( ~ py010n , design = des_eusilc )
@@ -56,9 +57,6 @@
 #' # replicate-weighted design using a variable with missings
 #' svyrmpg( ~ py010n , design = des_eusilc_rep )
 #' svyrmpg( ~ py010n , design = des_eusilc_rep , na.rm = TRUE )
-#'
-#' # library(MonetDBLite) is only available on 64-bit machines,
-#' # so do not run this block of code in 32-bit R
 #'
 #' # database-backed design
 #' library(MonetDBLite)
@@ -83,6 +81,8 @@
 #'
 #' dbRemoveTable( conn , 'eusilc' )
 #'
+#' dbDisconnect( conn , shutdown = TRUE )
+#'
 #' }
 #'
 #' @export
@@ -99,7 +99,7 @@ svyrmpg <-
 #' @rdname svyrmpg
 #' @export
 svyrmpg.survey.design <-
-	function(formula, design, order = 0.5, percent = 0.6, na.rm=FALSE, thresh = FALSE, poor_median = FALSE,...) {
+	function(formula, design, quantiles = 0.5, percent = 0.6, na.rm=FALSE, thresh = FALSE, poor_median = FALSE,...) {
 
 		if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your linearized survey design object immediately after creating it with the svydesign() function.")
 
@@ -124,11 +124,11 @@ svyrmpg.survey.design <-
 			if (length(nas) > length(full_design$prob)) incvec <- incvec[!nas] else incvec[nas] <- 0
 		}
 
-		ARPT <- svyarpt (formula = formula, full_design, order = order, percent = percent, na.rm = na.rm )
+		ARPT <- svyarpt(formula = formula, full_design, quantiles = quantiles, percent = percent, na.rm = na.rm )
 		arpt <- coef(ARPT)
 		linarpt <- attr(ARPT, "lin")
 
-		POORMED <- svypoormed (formula = formula, design = design, order = order, percent = percent, na.rm = na.rm)
+		POORMED <- svypoormed(formula = formula, design = design, quantiles = quantiles, percent = percent, na.rm = na.rm)
 		medp <- coef(POORMED)
 		linmedp <- attr(POORMED, "lin")
 
@@ -144,7 +144,7 @@ svyrmpg.survey.design <-
 		variance <- survey::svyrecvar(infun/full_design$prob, full_design$cluster,full_design$strata, full_design$fpc,postStrata = full_design$postStrata)
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svystat" )
 		attr( rval , "var" ) <- variance
 		attr(rval, "lin") <- infun
 		attr( rval , "statistic" ) <- "rmpg"
@@ -158,7 +158,7 @@ svyrmpg.survey.design <-
 #' @rdname svyrmpg
 #' @export
 svyrmpg.svyrep.design <-
-	function(formula, design, order = 0.5, percent = 0.6,na.rm=FALSE, thresh = FALSE, poor_median = FALSE, ...) {
+	function(formula, design, quantiles = 0.5, percent = 0.6,na.rm=FALSE, thresh = FALSE, poor_median = FALSE, ...) {
 
 		if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your replicate-weighted survey design object immediately after creating it with the svrepdesign() function.")
 
@@ -191,8 +191,8 @@ svyrmpg.svyrep.design <-
 		ind<- row.names(df)
 
 		ComputeRmpg <-
-			function(xf, wf, ind, order, percent) {
-				tresh <- percent * computeQuantiles(xf, wf, p = order)
+			function(xf, wf, ind, quantiles, percent) {
+				tresh <- percent * computeQuantiles(xf, wf, p = quantiles)
 				x<-xf[ind]
 				w<- wf[ind]
 				indpoor <- (x <= tresh)
@@ -201,7 +201,7 @@ svyrmpg.svyrep.design <-
 			}
 
 		ws <- weights(design, "sampling")
-		Rmpg_val <- ComputeRmpg(xf = incvec, wf=wsf, ind= ind, order = order, percent = percent)
+		Rmpg_val <- ComputeRmpg(xf = incvec, wf=wsf, ind= ind, quantiles = quantiles, percent = percent)
 		rval <- Rmpg_val[3]
 
 		wwf <- weights(full_design, "analysis")
@@ -209,7 +209,7 @@ svyrmpg.svyrep.design <-
 		qq <-
 			apply(wwf, 2, function(wi){
 				names(wi)<- row.names(df_full)
-				ComputeRmpg(incvec, wi, ind=ind, order = order,percent = percent)[3]
+				ComputeRmpg(incvec, wi, ind=ind, quantiles = quantiles,percent = percent)[3]
 				})
 		if(anyNA(qq))variance <- NA
 		else variance <- survey::svrVar(qq, design$scale, design$rscales, mse = design$mse, coef = rval)
@@ -217,7 +217,7 @@ svyrmpg.svyrep.design <-
 		variance <- as.matrix( variance )
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svrepstat" )
 		attr( rval , "var" ) <- variance
 		attr(rval, "lin") <- NA
 		attr( rval , "statistic" ) <- "rmpg"

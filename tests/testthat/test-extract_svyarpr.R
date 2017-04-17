@@ -1,6 +1,13 @@
 context("Arpr output survey.design and svyrep.design")
 library(vardpoor)
 library(survey)
+
+dstrat1<-convey_prep(svydesign(id=~1,data=apistrat))
+test_that("svyarpr works on unweighted designs",{
+	svyarpr(~api00, design=dstrat1)
+})
+
+	
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 des_eusilc <- svydesign(ids = ~rb030, strata =~db040,  weights = ~rb050, data = eusilc)
@@ -8,14 +15,14 @@ des_eusilc <- convey_prep(des_eusilc)
 des_eusilc_rep <-as.svrepdesign(des_eusilc, type= "bootstrap")
 des_eusilc_rep <- convey_prep(des_eusilc_rep)
 a1 <- svyarpr(~eqincome, design = des_eusilc, 0.5, 0.6)
-a2 <- svyby(~eqincome, by = ~db040, design = des_eusilc, FUN = svyarpr, order = 0.5, percent = 0.6,deff = FALSE)
+a2 <- svyby(~eqincome, by = ~hsize, design = des_eusilc, FUN = svyarpr, quantiles = 0.5, percent = 0.6,deff = FALSE)
 
 b1 <- svyarpr(~eqincome, design = des_eusilc_rep, 0.5, 0.6)
 
-b2 <- svyby(~eqincome, by = ~db040, design = des_eusilc_rep, FUN = svyarpr, order = 0.5, percent = 0.6,deff = FALSE)
+b2 <- svyby(~eqincome, by = ~hsize, design = des_eusilc_rep, FUN = svyarpr, quantiles = 0.5, percent = 0.6,deff = FALSE)
 
-cv_dif1 <- 100*abs(cv(a1)-cv(b1))
-cv_diff2 <- 100*max(abs(cv(a2)-cv(b2)))
+cv_dif1 <- abs(cv(a1)-cv(b1))
+se_diff2 <- max(abs(SE(a2)-SE(b2)),na.rm=T)
 
 test_that("output svyarpr",{
   expect_is(coef(a1),"numeric")
@@ -24,9 +31,9 @@ test_that("output svyarpr",{
   expect_is(coef(b2),"numeric")
   expect_equal(coef(a1), coef(b1))
   expect_equal(coef(a2), coef(b2))
-  expect_lte(cv_dif1,5)
-  expect_lte(cv_diff2,5)
-  expect_is(SE(a1),"numeric")
+  expect_lte(cv_dif1, coef(a1) * 0.05 ) # the difference between CVs should be less than 5% of the coefficient, otherwise manually set it
+  expect_lte(se_diff2, max( coef(a2) ) * 0.05 ) # the difference between CVs should be less than 10% of the maximum coefficient, otherwise manually set it
+  expect_is(SE(a1),"matrix")
   expect_is(SE(a2), "numeric")
   expect_is(SE(b1),"numeric")
   expect_is(SE(b2),"numeric")
@@ -40,10 +47,6 @@ test_that("output svyarpr",{
   expect_equal(sum(confint(b2)[,2]>= coef(b2)),length(coef(b2)))
 })
 
-
-# library(MonetDBLite) is only available on 64-bit machines,
-# so do not run this block of code in 32-bit R
-if( .Machine$sizeof.pointer > 4 ){
 
 	 # database-backed design
 	library(MonetDBLite)
@@ -65,7 +68,7 @@ if( .Machine$sizeof.pointer > 4 ){
 
 
 	c1 <- svyarpr( ~ eqincome , design = dbd_eusilc )
-	c2 <- svyby(~ eqincome, by = ~db040, design = dbd_eusilc, FUN = svyarpr, order = 0.5, percent = 0.6,deff = FALSE)
+	c2 <- svyby(~ eqincome, by = ~hsize, design = dbd_eusilc, FUN = svyarpr, quantiles = 0.5, percent = 0.6,deff = FALSE)
 
 	dbRemoveTable( conn , 'eusilc' )
 
@@ -75,4 +78,91 @@ if( .Machine$sizeof.pointer > 4 ){
 	  expect_equal(SE(a1), SE(c1))
 	  expect_equal(SE(a2), SE(c2))
 	})
-}
+
+
+# compare subsetted objects to svyby objects
+sub_des <- svyarpr( ~eqincome , design = subset( des_eusilc , hsize == 1) )
+sby_des <- svyby( ~eqincome, by = ~hsize, design = des_eusilc, FUN = svyarpr)
+sub_rep <- svyarpr( ~eqincome , design = subset( des_eusilc_rep , hsize == 1) )
+sby_rep <- svyby( ~eqincome, by = ~hsize, design = des_eusilc_rep, FUN = svyarpr)
+
+test_that("subsets equal svyby",{
+	expect_equal(as.numeric(coef(sub_des)), as.numeric(coef(sby_des))[1])
+	expect_equal(as.numeric(coef(sub_rep)), as.numeric(coef(sby_rep))[1])
+	expect_equal(as.numeric(SE(sub_des)), as.numeric(SE(sby_des))[1])
+	expect_equal(as.numeric(SE(sub_rep)), as.numeric(SE(sby_rep))[1])
+
+	# coefficients should match across svydesign & svrepdesign
+	expect_equal(as.numeric(coef(sub_des)), as.numeric(coef(sby_rep))[1])
+
+	# coefficients of variation should be within five percent
+	cv_dif <- abs(cv(sub_des)-cv(sby_rep)[1])
+	expect_lte(cv_dif,5)
+})
+
+
+
+
+# second run of database-backed designs #
+
+	# database-backed design
+	library(MonetDBLite)
+	library(DBI)
+	dbfolder <- tempdir()
+	conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+	dbWriteTable( conn , 'eusilc' , eusilc )
+
+	dbd_eusilc <-
+		svydesign(
+			ids = ~rb030 ,
+			strata = ~db040 ,
+			weights = ~rb050 ,
+			data="eusilc",
+			dbname=dbfolder,
+			dbtype="MonetDBLite"
+		)
+
+	dbd_eusilc <- convey_prep( dbd_eusilc )
+
+	# create a hacky database-backed svrepdesign object
+	# mirroring des_eusilc_rep
+	dbd_eusilc_rep <-
+		svrepdesign(
+			weights = ~ rb050,
+			repweights = des_eusilc_rep$repweights ,
+			scale = des_eusilc_rep$scale ,
+			rscales = des_eusilc_rep$rscales ,
+			type = "bootstrap" ,
+			data = "eusilc" ,
+			dbtype = "MonetDBLite" ,
+			dbname = dbfolder ,
+			combined.weights = FALSE
+		)
+
+	dbd_eusilc_rep <- convey_prep( dbd_eusilc_rep )
+
+	sub_dbd <- svyarpr( ~eqincome , design = subset( dbd_eusilc , hsize == 1) )
+	sby_dbd <- svyby( ~eqincome, by = ~hsize, design = dbd_eusilc, FUN = svyarpr)
+	sub_dbr <- svyarpr( ~eqincome , design = subset( dbd_eusilc_rep , hsize == 1) )
+	sby_dbr <- svyby( ~eqincome, by = ~hsize, design = dbd_eusilc_rep, FUN = svyarpr)
+
+	dbRemoveTable( conn , 'eusilc' )
+
+
+	# compare database-backed designs to non-database-backed designs
+	test_that("dbi subsets equal non-dbi subsets",{
+		expect_equal(coef(sub_des), coef(sub_dbd))
+		expect_equal(coef(sub_rep), coef(sub_dbr))
+		expect_equal(SE(sub_des), SE(sub_dbd))
+		expect_equal(SE(sub_rep), SE(sub_dbr))
+	})
+
+
+	# compare database-backed subsetted objects to database-backed svyby objects
+	test_that("dbi subsets equal dbi svyby",{
+		expect_equal(as.numeric(coef(sub_dbd)), as.numeric(coef(sby_dbd))[1])
+		expect_equal(as.numeric(coef(sub_dbr)), as.numeric(coef(sby_dbr))[1])
+		expect_equal(as.numeric(SE(sub_dbd)), as.numeric(SE(sby_dbd))[1])
+		expect_equal(as.numeric(SE(sub_dbr)), as.numeric(SE(sby_dbr))[1])
+	})
+

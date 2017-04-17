@@ -2,18 +2,18 @@
 % Please edit documentation in R/svyarpt.R
 \name{svyarpt}
 \alias{svyarpt}
-\alias{svyarpt.DBIsvydesign}
 \alias{svyarpt.survey.design}
 \alias{svyarpt.svyrep.design}
+\alias{svyarpt.DBIsvydesign}
 \title{At-risk-of-poverty threshold}
 \usage{
 svyarpt(formula, design, ...)
 
-\method{svyarpt}{survey.design}(formula, design, order = 0.5, percent = 0.6,
-  na.rm = FALSE, ...)
+\method{svyarpt}{survey.design}(formula, design, quantiles = 0.5,
+  percent = 0.6, na.rm = FALSE, ...)
 
-\method{svyarpt}{svyrep.design}(formula, design, order = 0.5, percent = 0.6,
-  na.rm = FALSE, ...)
+\method{svyarpt}{svyrep.design}(formula, design, quantiles = 0.5,
+  percent = 0.6, na.rm = FALSE, ...)
 
 \method{svyarpt}{DBIsvydesign}(formula, design, ...)
 }
@@ -22,9 +22,9 @@ svyarpt(formula, design, ...)
 
 \item{design}{a design object of class \code{survey.design} or class \code{svyrep.design} from the \code{survey} library.}
 
-\item{...}{future expansion}
+\item{...}{arguments passed on to `survey::svyquantile`}
 
-\item{order}{income quantile order, usually .50 (median)}
+\item{quantiles}{income quantile quantiles, usually .50 (median)}
 
 \item{percent}{fraction of the quantile, usually .60}
 
@@ -56,6 +56,8 @@ des_eusilc_rep <- as.svrepdesign( des_eusilc , type = "bootstrap" )
 des_eusilc_rep <- convey_prep( des_eusilc_rep )
 svyarpt( ~eqincome , design = des_eusilc_rep )
 
+\dontrun{
+
 # linearized design using a variable with missings
 svyarpt( ~ py010n , design = des_eusilc )
 svyarpt( ~ py010n , design = des_eusilc , na.rm = TRUE )
@@ -63,10 +65,6 @@ svyarpt( ~ py010n , design = des_eusilc , na.rm = TRUE )
 svyarpt( ~ py010n , design = des_eusilc_rep )
 svyarpt( ~ py010n , design = des_eusilc_rep , na.rm = TRUE )
 
-
-# library(MonetDBLite) is only available on 64-bit machines,
-# so do not run this block of code in 32-bit R
-\dontrun{
 
 # database-backed design
 library(MonetDBLite)
@@ -78,7 +76,7 @@ dbWriteTable( conn , 'eusilc' , eusilc )
 dbd_eusilc <-
 	svydesign(
 		ids = ~rb030 ,
-		strata = ~db040 , 
+		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
 		dbname=dbfolder,
@@ -91,11 +89,10 @@ svyarpt( ~ eqincome , design = dbd_eusilc )
 
 dbRemoveTable( conn , 'eusilc' )
 
-}
+dbDisconnect( conn , shutdown = TRUE )
 
 }
-\author{
-Djalma Pessoa and Anthony Damico
+
 }
 \references{
 Guillaume Osier (2009). Variance estimation for complex indicators
@@ -110,5 +107,7 @@ URL \url{http://www5.statcan.gc.ca/bsolc/olc-cel/olc-cel?lang=eng&catno=12-001-X
 \seealso{
 \code{\link{svyarpr}}
 }
+\author{
+Djalma Pessoa and Anthony Damico
+}
 \keyword{survey}
-

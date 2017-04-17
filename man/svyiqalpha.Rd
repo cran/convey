@@ -2,9 +2,9 @@
 % Please edit documentation in R/svyiqalpha.R
 \name{svyiqalpha}
 \alias{svyiqalpha}
-\alias{svyiqalpha.DBIsvydesign}
 \alias{svyiqalpha.survey.design}
 \alias{svyiqalpha.svyrep.design}
+\alias{svyiqalpha.DBIsvydesign}
 \title{Linearization of a variable quantile}
 \usage{
 svyiqalpha(formula, design, ...)
@@ -20,7 +20,7 @@ svyiqalpha(formula, design, ...)
 
 \item{design}{a design object of class \code{survey.design} or class \code{svyrep.design} from the \code{survey} library.}
 
-\item{...}{future expansion}
+\item{...}{arguments passed on to `survey::svyquantile`}
 
 \item{alpha}{the order of the quantile}
 
@@ -52,17 +52,14 @@ des_eusilc_rep <- convey_prep(des_eusilc_rep)
 
 svyiqalpha( ~eqincome , design = des_eusilc_rep, .50 )
 
+\dontrun{
+
 # linearized design using a variable with missings
 svyiqalpha( ~ py010n , design = des_eusilc, .50 )
 svyiqalpha( ~ py010n , design = des_eusilc , .50, na.rm = TRUE )
 # replicate-weighted design using a variable with missings
 svyiqalpha( ~ py010n , design = des_eusilc_rep, .50 )
 svyiqalpha( ~ py010n , design = des_eusilc_rep ,.50, na.rm = TRUE )
-
-
-# library(MonetDBLite) is only available on 64-bit machines,
-# so do not run this block of code in 32-bit R
-\dontrun{
 
 # database-backed design
 library(MonetDBLite)
@@ -87,11 +84,10 @@ svyiqalpha( ~ eqincome , design = dbd_eusilc, .50 )
 
 dbRemoveTable( conn , 'eusilc' )
 
-}
+dbDisconnect( conn , shutdown = TRUE )
 
 }
-\author{
-Djalma Pessoa and Anthony Damico
+
 }
 \references{
 Guillaume Osier (2009). Variance estimation for complex indicators
@@ -106,5 +102,7 @@ URL \url{http://www5.statcan.gc.ca/bsolc/olc-cel/olc-cel?lang=eng&catno=12-001-X
 \seealso{
 \code{\link{svyarpr}}
 }
+\author{
+Djalma Pessoa and Anthony Damico
+}
 \keyword{survey}
-

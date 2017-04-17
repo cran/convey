@@ -43,17 +43,14 @@
 #'
 #' svygini( ~eqincome , design = des_eusilc_rep )
 #'
+#' \dontrun{
+#'
 #' # linearized design using a variable with missings
 #' svygini( ~ py010n , design = des_eusilc )
 #' svygini( ~ py010n , design = des_eusilc , na.rm = TRUE )
 #' # replicate-weighted design using a variable with missings
 #' svygini( ~ py010n , design = des_eusilc_rep )
 #' svygini( ~ py010n , design = des_eusilc_rep , na.rm = TRUE )
-#'
-#'
-#' # library(MonetDBLite) is only available on 64-bit machines,
-#' # so do not run this block of code in 32-bit R
-#' \dontrun{
 #'
 #' # database-backed design
 #' library(MonetDBLite)
@@ -65,18 +62,20 @@
 #' dbd_eusilc <-
 #' 	svydesign(
 #' 		ids = ~rb030 ,
-#' 		strata = ~db040 , 
+#' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
 #' 		dbname=dbfolder,
 #' 		dbtype="MonetDBLite"
 #' 	)
-#' 
+#'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
 #'
 #' svygini( ~ eqincome , design = dbd_eusilc )
 #'
 #' dbRemoveTable( conn , 'eusilc' )
+#'
+#' dbDisconnect( conn , shutdown = TRUE )
 #'
 #' }
 #'
@@ -133,12 +132,14 @@ svygini.survey.design <-
 		list_all <- list(T1 = T1, T2 = T2, T3 = T3)
 		GINI <- contrastinf( quote( ( 2 * T1 - T2 ) / ( T2 * T3 ) - 1 ) , list_all )
 		lingini <- as.vector( GINI$lin )
+		if(sum(w==0) > 0)  lingini <- lingini*(w!=0)
+		lingini <- lingini[order(ordincvar)]
 		rval <- GINI$value
 
 		variance <- survey::svyrecvar(lingini/design$prob, design$cluster,design$strata, design$fpc, postStrata = design$postStrata)
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svystat" )
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "gini"
 		attr(rval,"lin")<- lingini
@@ -190,7 +191,7 @@ svygini.svyrep.design <-
 		variance <- as.matrix( variance )
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- "cvystat"
+		class(rval) <- c( "cvystat" , "svrepstat" ) 
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "gini"
 

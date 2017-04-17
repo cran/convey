@@ -2,20 +2,20 @@
 % Please edit documentation in R/svyqsr.R
 \name{svyqsr}
 \alias{svyqsr}
-\alias{svyqsr.DBIsvydesign}
 \alias{svyqsr.survey.design}
 \alias{svyqsr.svyrep.design}
+\alias{svyqsr.DBIsvydesign}
 \title{Quintile Share Ratio}
 \usage{
 svyqsr(formula, design, ...)
 
-\method{svyqsr}{survey.design}(formula, design, alpha = 0.2, na.rm = FALSE,
-  upper_quant = FALSE, lower_quant = FALSE, upper_tot = FALSE,
-  lower_tot = FALSE, ...)
+\method{svyqsr}{survey.design}(formula, design, alpha1 = 0.2, alpha2 = (1 -
+  alpha1), na.rm = FALSE, upper_quant = FALSE, lower_quant = FALSE,
+  upper_tot = FALSE, lower_tot = FALSE, ...)
 
-\method{svyqsr}{svyrep.design}(formula, design, alpha = 0.2, na.rm = FALSE,
-  upper_quant = FALSE, lower_quant = FALSE, upper_tot = FALSE,
-  lower_tot = FALSE, ...)
+\method{svyqsr}{svyrep.design}(formula, design, alpha1 = 0.2, alpha2 = (1 -
+  alpha1), na.rm = FALSE, upper_quant = FALSE, lower_quant = FALSE,
+  upper_tot = FALSE, lower_tot = FALSE, ...)
 
 \method{svyqsr}{DBIsvydesign}(formula, design, ...)
 }
@@ -26,7 +26,9 @@ svyqsr(formula, design, ...)
 
 \item{...}{future expansion}
 
-\item{alpha}{order of the quintile ratio}
+\item{alpha1}{order of the lower quintile}
+
+\item{alpha2}{order of the upper quintile}
 
 \item{na.rm}{Should cases with missing values be dropped?}
 
@@ -48,7 +50,7 @@ Estimate ratio of the total income received by the highest earners to the total 
 you must run the \code{convey_prep} function on your survey design object immediately after creating it with the \code{svydesign} or \code{svrepdesign} function.
 }
 \examples{
-\dontrun{
+
 library(survey)
 library(vardpoor)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
@@ -65,15 +67,14 @@ des_eusilc_rep <- convey_prep( des_eusilc_rep )
 
 svyqsr( ~eqincome , design = des_eusilc_rep, upper_tot = TRUE, lower_tot = TRUE )
 
-# linearized design using a variable with missings
-svyqsr( ~ py010n , design = des_eusilc )
-svyqsr( ~ py010n , design = des_eusilc , na.rm = TRUE )
-# replicate-weighted design using a variable with missings
-svyqsr( ~ py010n , design = des_eusilc_rep )
-svyqsr( ~ py010n , design = des_eusilc_rep , na.rm = TRUE )
+\dontrun{
 
-# library(MonetDBLite) is only available on 64-bit machines,
-# so do not run this block of code in 32-bit R
+# linearized design using a variable with missings
+svyqsr( ~ db090 , design = des_eusilc )
+svyqsr( ~ db090 , design = des_eusilc , na.rm = TRUE )
+# replicate-weighted design using a variable with missings
+svyqsr( ~ db090 , design = des_eusilc_rep )
+svyqsr( ~ db090 , design = des_eusilc_rep , na.rm = TRUE )
 
 # database-backed design
 library(MonetDBLite)
@@ -85,7 +86,7 @@ dbWriteTable( conn , 'eusilc' , eusilc )
 dbd_eusilc <-
 	svydesign(
 		ids = ~rb030 ,
-		strata = ~db040 , 
+		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
 		dbname=dbfolder,
@@ -98,11 +99,10 @@ svyqsr( ~ eqincome , design = dbd_eusilc )
 
 dbRemoveTable( conn , 'eusilc' )
 
-}
+dbDisconnect( conn , shutdown = TRUE )
 
 }
-\author{
-Djalma Pessoa and Anthony Damico
+
 }
 \references{
 Guillaume Osier (2009). Variance estimation for complex indicators
@@ -117,5 +117,7 @@ URL \url{http://www5.statcan.gc.ca/bsolc/olc-cel/olc-cel?lang=eng&catno=12-001-X
 \seealso{
 \code{\link{svyarpt}}
 }
+\author{
+Djalma Pessoa and Anthony Damico
+}
 \keyword{survey}
-

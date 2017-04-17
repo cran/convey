@@ -2,9 +2,9 @@
 % Please edit documentation in R/svygini.R
 \name{svygini}
 \alias{svygini}
-\alias{svygini.DBIsvydesign}
 \alias{svygini.survey.design}
 \alias{svygini.svyrep.design}
+\alias{svygini.DBIsvydesign}
 \title{Gini coefficient}
 \usage{
 svygini(formula, design, ...)
@@ -50,17 +50,14 @@ des_eusilc_rep <- convey_prep(des_eusilc_rep)
 
 svygini( ~eqincome , design = des_eusilc_rep )
 
+\dontrun{
+
 # linearized design using a variable with missings
 svygini( ~ py010n , design = des_eusilc )
 svygini( ~ py010n , design = des_eusilc , na.rm = TRUE )
 # replicate-weighted design using a variable with missings
 svygini( ~ py010n , design = des_eusilc_rep )
 svygini( ~ py010n , design = des_eusilc_rep , na.rm = TRUE )
-
-
-# library(MonetDBLite) is only available on 64-bit machines,
-# so do not run this block of code in 32-bit R
-\dontrun{
 
 # database-backed design
 library(MonetDBLite)
@@ -72,7 +69,7 @@ dbWriteTable( conn , 'eusilc' , eusilc )
 dbd_eusilc <-
 	svydesign(
 		ids = ~rb030 ,
-		strata = ~db040 , 
+		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
 		dbname=dbfolder,
@@ -85,11 +82,10 @@ svygini( ~ eqincome , design = dbd_eusilc )
 
 dbRemoveTable( conn , 'eusilc' )
 
-}
+dbDisconnect( conn , shutdown = TRUE )
 
 }
-\author{
-Djalma Pessoa and Anthony Damico
+
 }
 \references{
 Guillaume Osier (2009). Variance estimation for complex indicators
@@ -104,5 +100,7 @@ URL \url{http://www5.statcan.gc.ca/bsolc/olc-cel/olc-cel?lang=eng&catno=12-001-X
 \seealso{
 \code{\link{svyarpr}}
 }
+\author{
+Djalma Pessoa and Anthony Damico
+}
 \keyword{survey}
-
