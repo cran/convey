@@ -1,11 +1,11 @@
-663f2bbfa2bb8777ca4bd7cd6696a5f1 *DESCRIPTION
+39d221d0baf70c59e39712c5cf3fc650 *DESCRIPTION
 09bb69e8a08bd45956c08dddb91535e3 *NAMESPACE
 a87dc569dc2f80453f7738d762843137 *R/all_funs.R
 ced8d7ce70f632283099d8ed49a24701 *R/contrastinf.R
 fc764bd4049aed13ffd90c343a21dc80 *R/survey_functions.R
 2be1be63f9ee4c2564b48b553908c602 *R/svyafc.R
 5057a2376d9a44fd3898397bee63e4ac *R/svyafcdec.R
-a2799c24f780eed1a5dde24714654d3c *R/svyamato.R
+154739891cb23e2fbdac02ab1214136e *R/svyamato.R
 8a508209a520a25caa718b71e11e27c7 *R/svyarpr.R
 870281e7b01bfd5ef82e69b3433d601e *R/svyarpt.R
 61052ee2c47cdbc68f3c2a0674c7c60d *R/svyatk.R
@@ -28,7 +28,7 @@ cdc6cafc2f1eb322e0b741746ba11f7b *R/svypoormed.R
 4a02a19bdb7db8ba7f2b700e0492f3e3 *R/svyrmpg.R
 36c5582e7a73a9c1f35088f270639634 *R/svysen.R
 50e8912f292dea06387cf4408efad9d5 *R/svysst.R
-9c0dd5ef6dc36b4c87e1abc815afaa7f *R/svyzenga.R
+27814a333688d7925535315b22bee87d *R/svyzenga.R
 db993063f73d5e1479a1616d0ff76870 *R/svyzengacurve.R
 a058567b690c72df96dcaa9600447dad *README.md
 d826995ec06ea205f7c9d2676bf59312 *man/contrastinf.Rd
@@ -38,7 +38,7 @@ faacebb2abdec86e7ef58ccaa072e760 *man/densfun.Rd
 7ec55624d1efeeea052babdc22bb676e *man/icdf.Rd
 d7c279809a153a0edc8451e64e4fd7f1 *man/svyafc.Rd
 bd6affc8e203c1c0e3bf14a1bce23cc6 *man/svyafcdec.Rd
-ddedd3500dab33ef80b9d8acb8bf8569 *man/svyamato.Rd
+64135e1a4c08ee57b5485ffbcbd87478 *man/svyamato.Rd
 8da08d617d220aef59aec2e8cb3f946b *man/svyarpr.Rd
 838d0475999320ca0b732b2e092daba9 *man/svyarpt.Rd
 369462e5b0876272996b90a4abe9a0e5 *man/svyatk.Rd
@@ -61,7 +61,7 @@ cd27816614345e5a2427e45b23f01101 *man/svypoormed.Rd
 d88a0381cd1a87053e7112a08725a20f *man/svyrmpg.Rd
 d3df952c1b1e2eea51e15fd1066bd3ba *man/svysen.Rd
 41a77be7a47108899f083a3855e38f9e *man/svysst.Rd
-5d8802d6e603c4d35afd443cf0a1b9a6 *man/svyzenga.Rd
+3bc860d75bfa0b4c2bafcd43cf1ba674 *man/svyzenga.Rd
 74f3dd157366e94a563658e254466935 *man/svyzengacurve.Rd
 3918043aa0b64603a1e8233138bf2d15 *tests/testthat.R
 f4c96d11d5553692595b9278feb9fe8b *tests/testthat/test-densfun.R
@@ -97,7 +97,7 @@ bc64c34ae2ea54d6ac77d7ffa078c290 *tests/testthat/test-matrix.R
 8cfa25eea1368c84c1cc8de1f625c863 *tests/testthat/test-skewed_distributions.R
 9b79e02774ed32a703f57e3aa9fd962a *tests/testthat/test-svyarpr.R
 9bcd3e22aefb8e294437cb7b245d3c93 *tests/testthat/test-svyarpt.R
-e629ac9e7405c2cc295d0328bf1bc408 *tests/testthat/test-svyatk.R
+255e1f9fd59acfaff4e2a287d1fb7db8 *tests/testthat/test-svyatk.R
 e424db0b854690fc466ecde806c7dac5 *tests/testthat/test-svygini.R
 767da307b2dc93697a825835f51a8e32 *tests/testthat/test-svypoormed.R
 bb3cb097d7467616edea0bbf62d4c255 *tests/testthat/test-svyqsr.R
