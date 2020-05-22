@@ -9,13 +9,31 @@
 \usage{
 svyfgt(formula, design, ...)
 
-\method{svyfgt}{survey.design}(formula, design, g, type_thresh = "abs",
-  abs_thresh = NULL, percent = 0.6, quantiles = 0.5, na.rm = FALSE,
-  thresh = FALSE, ...)
+\method{svyfgt}{survey.design}(
+  formula,
+  design,
+  g,
+  type_thresh = "abs",
+  abs_thresh = NULL,
+  percent = 0.6,
+  quantiles = 0.5,
+  na.rm = FALSE,
+  thresh = FALSE,
+  ...
+)
 
-\method{svyfgt}{svyrep.design}(formula, design, g, type_thresh = "abs",
-  abs_thresh = NULL, percent = 0.6, quantiles = 0.5, na.rm = FALSE,
-  thresh = FALSE, ...)
+\method{svyfgt}{svyrep.design}(
+  formula,
+  design,
+  g,
+  type_thresh = "abs",
+  abs_thresh = NULL,
+  percent = 0.6,
+  quantiles = 0.5,
+  na.rm = FALSE,
+  thresh = FALSE,
+  ...
+)
 
 \method{svyfgt}{DBIsvydesign}(formula, design, ...)
 }
@@ -52,7 +70,7 @@ you must run the \code{convey_prep} function on your survey design object immedi
 }
 \examples{
 library(survey)
-library(vardpoor)
+library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
@@ -94,10 +112,10 @@ svyfgt(~eqincome, des_eusilc_rep, g=1, type_thresh= "relm", thresh = TRUE)
 \dontrun{
 
 # database-backed design
-library(MonetDBLite)
+library(RSQLite)
 library(DBI)
-dbfolder <- tempdir()
-conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+dbfile <- tempfile()
+conn <- dbConnect( RSQLite::SQLite() , dbfile )
 dbWriteTable( conn , 'eusilc' , eusilc )
 
 dbd_eusilc <-
@@ -106,8 +124,8 @@ dbd_eusilc <-
 		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
-		dbname=dbfolder,
-		dbtype="MonetDBLite"
+		dbname=dbfile,
+		dbtype="SQLite"
 	)
 
 
@@ -134,6 +152,9 @@ dbDisconnect( conn , shutdown = TRUE )
 
 }
 \references{
+James Foster, Joel Greer and Erik Thorbecke (1984). A class of decomposable poverty measures.
+\emph{Econometrica}, Vol.52, No.3, pp. 761-766.
+
 Guillaume Osier (2009). Variance estimation for complex indicators
 of poverty and inequality. \emph{Journal of the European Survey Research
 Association}, Vol.3, No.3, pp. 167-195,

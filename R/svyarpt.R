@@ -31,7 +31,7 @@
 #' @examples
 #'
 #' library(survey)
-#' library(vardpoor)
+#' library(laeken)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 #'
 #' # linearized design
@@ -56,10 +56,10 @@
 #'
 #'
 #' # database-backed design
-#' library(MonetDBLite)
+#' library(RSQLite)
 #' library(DBI)
-#' dbfolder <- tempdir()
-#' conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+#' dbfile <- tempfile()
+#' conn <- dbConnect( RSQLite::SQLite() , dbfile )
 #' dbWriteTable( conn , 'eusilc' , eusilc )
 #'
 #' dbd_eusilc <-
@@ -68,8 +68,8 @@
 #' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
-#' 		dbname=dbfolder,
-#' 		dbtype="MonetDBLite"
+#' 		dbname=dbfile,
+#' 		dbtype="SQLite"
 #' 	)
 #'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -114,7 +114,7 @@ svyarpt.survey.design <-
 		}
 
 		if( is.null( names( design$prob ) ) ) ind <- as.character( seq( length( design$prob ) ) ) else ind <- names(design$prob)
-		
+
 		w <- 1/design$prob
 
 		incvec <- model.frame(formula, full_design$variables, na.action = na.pass)[[1]]
@@ -128,9 +128,9 @@ svyarpt.survey.design <-
 		}
 
 		if( is.null( names( full_design$prob ) ) ) ncom <- as.character( seq( length( full_design$prob ) ) ) else ncom <- names(full_design$prob)
-		
+
 		wf <- 1/full_design$prob
-		htot <- h_fun(incvec, wf)
+		htot <- h_fun(incvar, w)
 		q_alpha <- survey::svyquantile(x = formula, design = design, quantiles = quantiles,
 		method = "constant", na.rm = na.rm,...)
 		q_alpha <- as.vector(q_alpha)

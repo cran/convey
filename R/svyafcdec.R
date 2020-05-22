@@ -33,7 +33,7 @@
 #'
 #' @examples
 #' library(survey)
-#' library(vardpoor)
+#' library(laeken)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 #'
 #' # linearized design
@@ -91,10 +91,10 @@
 #' 		k = .5, g = 0, cutoffs = cos , na.rm = TRUE )
 #'
 #' # database-backed design
-#' library(MonetDBLite)
+#' library(RSQLite)
 #' library(DBI)
-#' dbfolder <- tempdir()
-#' conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+#' dbfile <- tempfile()
+#' conn <- dbConnect( RSQLite::SQLite() , dbfile )
 #' dbWriteTable( conn , 'eusilc' , eusilc )
 #'
 #' dbd_eusilc <-
@@ -103,8 +103,8 @@
 #' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
-#' 		dbname=dbfolder,
-#' 		dbtype="MonetDBLite"
+#' 		dbname=dbfile,
+#' 		dbtype="SQLite"
 #' 	)
 #'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -207,13 +207,8 @@ svyafcdec.survey.design <- function( formula, subgroup = ~1 , design, g , cutoff
   grpvar <- model.frame(subgroup, design$variables, na.action = na.pass)[,]
 
   # Deprivation Matrix
-  dep.matrix <- ach.matrix
-  for ( i in seq_along(cutoffs) ) {
-
-    cut.value <- cutoffs[[i]]
-    dep.matrix[ , i ] <- 1*( cut.value > ach.matrix[ , i ] )
-
-  }
+  dep.matrix <- sapply( seq_along(var.class), FUN = function( i ){ 1*( cutoffs[[i]] > ach.matrix[ , i ] ) } )
+  colnames(dep.matrix) <- colnames( var.class )
 
   # Unweighted count of deprivations:
   # depr.count <- rowSums( dep.matrix )
@@ -231,18 +226,14 @@ svyafcdec.survey.design <- function( formula, subgroup = ~1 , design, g , cutoff
   #rm(dep.matrix)
 
   # Censored Deprivation Matrix
-  cen.dep.matrix <- ach.matrix
-  for ( i in seq_along(cutoffs) ) {
-
-    cut.value <- cutoffs[[i]]
-
-    if ( var.class[ i ] == "numeric" ) {
-      cen.dep.matrix[ , i ] <- 1*( cut.value > ach.matrix[ , i ] ) * ( ( cut.value - ach.matrix[ , i ] ) / cut.value )^g
+  cen.dep.matrix <- sapply( seq_along(cutoffs) , FUN = function( x ) {
+    if ( var.class[ x ] == "numeric" ) {
+      1*( cutoffs[[x]] > ach.matrix[ , x ] ) * ( ( cutoffs[[x]] - ach.matrix[ , x ] ) / cutoffs[[x]] )^g
     } else {
-      cen.dep.matrix[ , i ] <- 1*( cut.value > ach.matrix[ , i ] )
+      1*( cutoffs[[x]] > ach.matrix[ , x ] )
     }
-
-  }
+  } )
+  colnames(cen.dep.matrix) <- colnames( var.class )
 
   cen.dep.matrix[ multi.cut == 0 & !is.na( multi.cut ), ] <- 0
 
@@ -422,11 +413,8 @@ svyafcdec.svyrep.design <- function( formula, subgroup = ~1 , design, g , cutoff
   grpvar <- model.frame(subgroup, design$variables, na.action = na.pass)[,]
 
   # Deprivation Matrix
-  dep.matrix <- ach.matrix
-  for ( i in seq_along(cutoffs) ) {
-    cut.value <- cutoffs[[i]]
-    dep.matrix[ , i ] <- 1*( cut.value > ach.matrix[ , i ] )
-  }
+  dep.matrix <- sapply( seq_along(var.class), FUN = function( i ){ 1*( cutoffs[[i]] > ach.matrix[ , i ] ) } )
+  colnames(dep.matrix) <- colnames( var.class )
 
   # Unweighted count of deprivations:
   # depr.count <- rowSums( dep.matrix )
@@ -444,19 +432,14 @@ svyafcdec.svyrep.design <- function( formula, subgroup = ~1 , design, g , cutoff
   #rm(dep.matrix)
 
   # Censored Deprivation Matrix
-  cen.dep.matrix <- ach.matrix
-  for ( i in seq_along(cutoffs) ) {
-
-    cut.value <- cutoffs[[i]]
-
-    if ( var.class[ i ] == "numeric" ) {
-      cen.dep.matrix[ , i ] <- 1*( cut.value > ach.matrix[ , i ] ) * ( ( cut.value - ach.matrix[ , i ] ) / cut.value )^g
+  cen.dep.matrix <- sapply( seq_along(cutoffs) , FUN = function( x ) {
+    if ( var.class[ x ] == "numeric" ) {
+      1*( cutoffs[[x]] > ach.matrix[ , x ] ) * ( ( cutoffs[[x]] - ach.matrix[ , x ] ) / cutoffs[[x]] )^g
     } else {
-      cen.dep.matrix[ , i ] <- 1*( cut.value > ach.matrix[ , i ] )
+      1*( cutoffs[[x]] > ach.matrix[ , x ] )
     }
-    rm( i )
-
-  }
+  } )
+  colnames(cen.dep.matrix) <- colnames( var.class )
   cen.dep.matrix[ multi.cut == 0 & !is.na( multi.cut ), ] <- 0
 
   ww <- weights( design, "analysis")

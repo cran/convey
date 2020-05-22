@@ -9,11 +9,29 @@
 \usage{
 svyafcdec(formula, subgroup, design, ...)
 
-\method{svyafcdec}{survey.design}(formula, subgroup = ~1, design, g, cutoffs,
-  k, dimw = NULL, na.rm = FALSE, ...)
+\method{svyafcdec}{survey.design}(
+  formula,
+  subgroup = ~1,
+  design,
+  g,
+  cutoffs,
+  k,
+  dimw = NULL,
+  na.rm = FALSE,
+  ...
+)
 
-\method{svyafcdec}{svyrep.design}(formula, subgroup = ~1, design, g, cutoffs,
-  k, dimw = NULL, na.rm = FALSE, ...)
+\method{svyafcdec}{svyrep.design}(
+  formula,
+  subgroup = ~1,
+  design,
+  g,
+  cutoffs,
+  k,
+  dimw = NULL,
+  na.rm = FALSE,
+  ...
+)
 
 \method{svyafcdec}{DBIsvydesign}(formula, subgroup = ~1, design, ...)
 }
@@ -47,7 +65,7 @@ you must run the \code{convey_prep} function on your survey design object immedi
 }
 \examples{
 library(survey)
-library(vardpoor)
+library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
@@ -105,10 +123,10 @@ svyafcdec(~eqincome+hy050n+pb220a,  ~rb090 , des_eusilc_rep,
 		k = .5, g = 0, cutoffs = cos , na.rm = TRUE )
 
 # database-backed design
-library(MonetDBLite)
+library(RSQLite)
 library(DBI)
-dbfolder <- tempdir()
-conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+dbfile <- tempfile()
+conn <- dbConnect( RSQLite::SQLite() , dbfile )
 dbWriteTable( conn , 'eusilc' , eusilc )
 
 dbd_eusilc <-
@@ -117,8 +135,8 @@ dbd_eusilc <-
 		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
-		dbname=dbfolder,
-		dbtype="MonetDBLite"
+		dbname=dbfile,
+		dbtype="SQLite"
 	)
 
 dbd_eusilc <- convey_prep( dbd_eusilc )

@@ -1,13 +1,13 @@
 context("svyrenyi output survey.design and svyrep.design")
 
-library(vardpoor)
+library(laeken)
 library(survey)
 data(api)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 for ( this_eps in c( 0.5 , 1 , 2 ) ){
-	
-	
+
+
 	dstrat1<-convey_prep(svydesign(id=~1,data=apistrat))
 	test_that("svyrenyi works on unweighted designs",{
 		svyrenyi(~api00, design=dstrat1, epsilon = this_eps)
@@ -16,7 +16,7 @@ for ( this_eps in c( 0.5 , 1 , 2 ) ){
 
 	des_eusilc <- svydesign(ids = ~rb030, strata =~db040,  weights = ~rb050, data = eusilc)
 	des_eusilc <- convey_prep(des_eusilc)
-	des_eusilc_rep_save <- des_eusilc_rep <-as.svrepdesign(des_eusilc, type= "bootstrap")
+	des_eusilc_rep_save <- des_eusilc_rep <-as.svrepdesign(des_eusilc, type= "bootstrap" , replicates = 30)
 	des_eusilc_rep <- convey_prep(des_eusilc_rep)
 
 	des_eusilc <- subset( des_eusilc , eqincome > 0 )
@@ -59,10 +59,10 @@ for ( this_eps in c( 0.5 , 1 , 2 ) ){
 
 
 		 # database-backed design
-		library(MonetDBLite)
+		library(RSQLite)
 		library(DBI)
-		dbfolder <- tempdir()
-		conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+		dbfile <- tempfile()
+		conn <- dbConnect( RSQLite::SQLite() , dbfile )
 		dbWriteTable( conn , 'eusilc' , eusilc )
 
 		dbd_eusilc <-
@@ -71,8 +71,8 @@ for ( this_eps in c( 0.5 , 1 , 2 ) ){
 				strata = ~db040 ,
 				weights = ~rb050 ,
 				data="eusilc",
-				dbname=dbfolder,
-				dbtype="MonetDBLite"
+				dbname=dbfile,
+				dbtype="SQLite"
 			)
 		dbd_eusilc <- convey_prep( dbd_eusilc )
 
@@ -82,6 +82,7 @@ for ( this_eps in c( 0.5 , 1 , 2 ) ){
 		c2 <- svyby(~ eqincome, by = ~hsize, design = dbd_eusilc, FUN = svyrenyi , epsilon = this_eps )
 
 		dbRemoveTable( conn , 'eusilc' )
+		dbDisconnect( conn )
 
 		test_that("database svyrenyi",{
 		  expect_equal(coef(a1), coef(c1))
@@ -117,10 +118,10 @@ for ( this_eps in c( 0.5 , 1 , 2 ) ){
 	# second run of database-backed designs #
 
 		# database-backed design
-		library(MonetDBLite)
+		library(RSQLite)
 		library(DBI)
-		dbfolder <- tempdir()
-		conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+		dbfile <- tempfile()
+		conn <- dbConnect( RSQLite::SQLite() , dbfile )
 		dbWriteTable( conn , 'eusilc' , eusilc )
 
 		dbd_eusilc <-
@@ -129,14 +130,14 @@ for ( this_eps in c( 0.5 , 1 , 2 ) ){
 				strata = ~db040 ,
 				weights = ~rb050 ,
 				data="eusilc",
-				dbname=dbfolder,
-				dbtype="MonetDBLite"
+				dbname=dbfile,
+				dbtype="SQLite"
 			)
 
 		dbd_eusilc <- convey_prep( dbd_eusilc )
 
 		dbd_eusilc <- subset( dbd_eusilc , eqincome > 0 )
-		
+
 		# create a hacky database-backed svrepdesign object
 		# mirroring des_eusilc_rep_save
 		dbd_eusilc_rep <-
@@ -147,21 +148,22 @@ for ( this_eps in c( 0.5 , 1 , 2 ) ){
 				rscales = des_eusilc_rep_save$rscales ,
 				type = "bootstrap" ,
 				data = "eusilc" ,
-				dbtype = "MonetDBLite" ,
-				dbname = dbfolder ,
+				dbtype="SQLite" ,
+				dbname = dbfile ,
 				combined.weights = FALSE
 			)
 
 		dbd_eusilc_rep <- convey_prep( dbd_eusilc_rep )
 
 		dbd_eusilc_rep <- subset( dbd_eusilc_rep , eqincome > 0 )
-		
+
 		sub_dbd <- svyrenyi( ~eqincome , design = subset( dbd_eusilc , hsize == 1 ) , epsilon = this_eps )
 		sby_dbd <- svyby( ~eqincome, by = ~hsize, design = dbd_eusilc, FUN = svyrenyi , epsilon = this_eps )
 		sub_dbr <- svyrenyi( ~eqincome , design = subset( dbd_eusilc_rep , hsize == 1 ) , epsilon = this_eps )
 		sby_dbr <- svyby( ~eqincome, by = ~hsize, design = dbd_eusilc_rep, FUN = svyrenyi , epsilon = this_eps )
 
 		dbRemoveTable( conn , 'eusilc' )
+		dbDisconnect( conn )
 
 
 		# compare database-backed designs to non-database-backed designs

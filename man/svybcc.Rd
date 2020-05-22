@@ -9,11 +9,27 @@
 \usage{
 svybcc(formula, design, ...)
 
-\method{svybcc}{survey.design}(formula, design, theta = 0.5, alpha = 0.5,
-  cutoffs, dimw = NULL, na.rm = FALSE, ...)
+\method{svybcc}{survey.design}(
+  formula,
+  design,
+  theta = 0.5,
+  alpha = 0.5,
+  cutoffs,
+  dimw = NULL,
+  na.rm = FALSE,
+  ...
+)
 
-\method{svybcc}{svyrep.design}(formula, design, theta = 0.5, alpha = 0.5,
-  cutoffs, dimw = NULL, na.rm = FALSE, ...)
+\method{svybcc}{svyrep.design}(
+  formula,
+  design,
+  theta = 0.5,
+  alpha = 0.5,
+  cutoffs,
+  dimw = NULL,
+  na.rm = FALSE,
+  ...
+)
 
 \method{svybcc}{DBIsvydesign}(formula, design, ...)
 }
@@ -48,7 +64,7 @@ This function is experimental and is subject to changes in later versions.
 }
 \examples{
 library(survey)
-library(vardpoor)
+library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
@@ -84,10 +100,10 @@ svybcc(~eqincome+hy050n+pb220a, des_eusilc_rep, cutoffs = cos, na.rm = FALSE )
 svybcc(~eqincome+hy050n+pb220a, des_eusilc_rep, cutoffs = cos, na.rm = TRUE )
 
 # database-backed design
-library(MonetDBLite)
+library(RSQLite)
 library(DBI)
-dbfolder <- tempdir()
-conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+dbfile <- tempfile()
+conn <- dbConnect( RSQLite::SQLite() , dbfile )
 dbWriteTable( conn , 'eusilc' , eusilc )
 
 dbd_eusilc <-
@@ -96,8 +112,8 @@ dbd_eusilc <-
 		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
-		dbname=dbfolder,
-		dbtype="MonetDBLite"
+		dbname=dbfile,
+		dbtype="SQLite"
 	)
 
 dbd_eusilc <- convey_prep( dbd_eusilc )

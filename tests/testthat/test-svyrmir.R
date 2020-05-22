@@ -1,7 +1,8 @@
 
 context("Rmir output")
-library(vardpoor)
+library(laeken)
 library(survey)
+library(vardpoor)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 dati = data.frame(IDd = seq( 10000 , 10000 + nrow( eusilc ) - 1 ) , eusilc)
 

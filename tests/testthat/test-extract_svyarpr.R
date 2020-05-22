@@ -1,18 +1,20 @@
 context("Arpr output survey.design and svyrep.design")
-library(vardpoor)
+library(laeken)
 library(survey)
+library(vardpoor)
 
+data("api")
 dstrat1<-convey_prep(svydesign(id=~1,data=apistrat))
 test_that("svyarpr works on unweighted designs",{
 	svyarpr(~api00, design=dstrat1)
 })
 
-	
+
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 des_eusilc <- svydesign(ids = ~rb030, strata =~db040,  weights = ~rb050, data = eusilc)
 des_eusilc <- convey_prep(des_eusilc)
-des_eusilc_rep <-as.svrepdesign(des_eusilc, type= "bootstrap")
+des_eusilc_rep <-as.svrepdesign(des_eusilc, type= "bootstrap" , replicates = 50 )
 des_eusilc_rep <- convey_prep(des_eusilc_rep)
 a1 <- svyarpr(~eqincome, design = des_eusilc, 0.5, 0.6)
 a2 <- svyby(~eqincome, by = ~hsize, design = des_eusilc, FUN = svyarpr, quantiles = 0.5, percent = 0.6,deff = FALSE)
@@ -47,12 +49,14 @@ test_that("output svyarpr",{
   expect_equal(sum(confint(b2)[,2]>= coef(b2)),length(coef(b2)))
 })
 
+test_that("database svyarpr",{
+	# skip_on_cran()
 
 	 # database-backed design
-	library(MonetDBLite)
+	library(RSQLite)
 	library(DBI)
-	dbfolder <- tempdir()
-	conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+	dbfile <- tempfile()
+	conn <- dbConnect( RSQLite::SQLite() , dbfile )
 	dbWriteTable( conn , 'eusilc' , eusilc )
 
 	dbd_eusilc <-
@@ -61,8 +65,8 @@ test_that("output svyarpr",{
 	strata = ~db040 ,
 	weights = ~rb050 ,
 	data="eusilc",
-	dbname=dbfolder,
-	dbtype="MonetDBLite"
+	dbname=dbfile,
+	dbtype="SQLite"
 	)
 	dbd_eusilc <- convey_prep( dbd_eusilc )
 
@@ -71,8 +75,8 @@ test_that("output svyarpr",{
 	c2 <- svyby(~ eqincome, by = ~hsize, design = dbd_eusilc, FUN = svyarpr, quantiles = 0.5, percent = 0.6,deff = FALSE)
 
 	dbRemoveTable( conn , 'eusilc' )
+		dbDisconnect( conn )
 
-	test_that("database svyarpr",{
 	  expect_equal(coef(a1), coef(c1))
 	  expect_equal(coef(a2), coef(c2))
 	  expect_equal(SE(a1), SE(c1))
@@ -101,15 +105,17 @@ test_that("subsets equal svyby",{
 })
 
 
-
+# compare database-backed designs to non-database-backed designs
+test_that("dbi subsets equal non-dbi subsets",{
+	skip_on_cran()
 
 # second run of database-backed designs #
 
 	# database-backed design
-	library(MonetDBLite)
+	library(RSQLite)
 	library(DBI)
-	dbfolder <- tempdir()
-	conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+	dbfile <- tempfile()
+	conn <- dbConnect( RSQLite::SQLite() , dbfile )
 	dbWriteTable( conn , 'eusilc' , eusilc )
 
 	dbd_eusilc <-
@@ -118,8 +124,8 @@ test_that("subsets equal svyby",{
 			strata = ~db040 ,
 			weights = ~rb050 ,
 			data="eusilc",
-			dbname=dbfolder,
-			dbtype="MonetDBLite"
+			dbname=dbfile,
+			dbtype="SQLite"
 		)
 
 	dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -134,8 +140,8 @@ test_that("subsets equal svyby",{
 			rscales = des_eusilc_rep$rscales ,
 			type = "bootstrap" ,
 			data = "eusilc" ,
-			dbtype = "MonetDBLite" ,
-			dbname = dbfolder ,
+			dbtype="SQLite" ,
+			dbname = dbfile ,
 			combined.weights = FALSE
 		)
 
@@ -147,19 +153,18 @@ test_that("subsets equal svyby",{
 	sby_dbr <- svyby( ~eqincome, by = ~hsize, design = dbd_eusilc_rep, FUN = svyarpr)
 
 	dbRemoveTable( conn , 'eusilc' )
+		dbDisconnect( conn )
 
 
-	# compare database-backed designs to non-database-backed designs
-	test_that("dbi subsets equal non-dbi subsets",{
 		expect_equal(coef(sub_des), coef(sub_dbd))
 		expect_equal(coef(sub_rep), coef(sub_dbr))
 		expect_equal(SE(sub_des), SE(sub_dbd))
 		expect_equal(SE(sub_rep), SE(sub_dbr))
-	})
+
 
 
 	# compare database-backed subsetted objects to database-backed svyby objects
-	test_that("dbi subsets equal dbi svyby",{
+	# dbi subsets equal dbi svyby
 		expect_equal(as.numeric(coef(sub_dbd)), as.numeric(coef(sby_dbd))[1])
 		expect_equal(as.numeric(coef(sub_dbr)), as.numeric(coef(sby_dbr))[1])
 		expect_equal(as.numeric(SE(sub_dbd)), as.numeric(SE(sby_dbd))[1])

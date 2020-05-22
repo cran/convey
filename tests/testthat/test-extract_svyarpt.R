@@ -1,5 +1,5 @@
 context("Arpt output survey.design and svyrep.design")
-library(vardpoor)
+library(laeken)
 library(survey)
 
 
@@ -51,10 +51,10 @@ test_that("output svyarpt",{
 
 
 	 # database-backed design
-	library(MonetDBLite)
+	library(RSQLite)
 	library(DBI)
-	dbfolder <- tempdir()
-	conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+	dbfile <- tempfile()
+	conn <- dbConnect( RSQLite::SQLite() , dbfile )
 	dbWriteTable( conn , 'eusilc' , eusilc )
 
 	dbd_eusilc <-
@@ -63,8 +63,8 @@ test_that("output svyarpt",{
 	strata = ~db040 ,
 	weights = ~rb050 ,
 	data="eusilc",
-	dbname=dbfolder,
-	dbtype="MonetDBLite"
+	dbname=dbfile,
+	dbtype="SQLite"
 	)
 	dbd_eusilc <- convey_prep( dbd_eusilc )
 
@@ -73,6 +73,7 @@ test_that("output svyarpt",{
 	c2 <- svyby(~ eqincome, by = ~hsize, design = dbd_eusilc, FUN = svyarpt, quantiles = 0.5, percent = 0.6,deff = FALSE)
 
 	dbRemoveTable( conn , 'eusilc' )
+		dbDisconnect( conn )
 
 	test_that("database svyarpt",{
 	  expect_equal(coef(a1), coef(c1))
@@ -108,10 +109,10 @@ test_that("subsets equal svyby",{
 
 
 	# database-backed design
-	library(MonetDBLite)
+	library(RSQLite)
 	library(DBI)
-	dbfolder <- tempdir()
-	conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+	dbfile <- tempfile()
+	conn <- dbConnect( RSQLite::SQLite() , dbfile )
 	dbWriteTable( conn , 'eusilc' , eusilc )
 
 	dbd_eusilc <-
@@ -120,8 +121,8 @@ test_that("subsets equal svyby",{
 			strata = ~db040 ,
 			weights = ~rb050 ,
 			data="eusilc",
-			dbname=dbfolder,
-			dbtype="MonetDBLite"
+			dbname=dbfile,
+			dbtype="SQLite"
 		)
 
 	dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -136,8 +137,8 @@ test_that("subsets equal svyby",{
 			rscales = des_eusilc_rep$rscales ,
 			type = "bootstrap" ,
 			data = "eusilc" ,
-			dbtype = "MonetDBLite" ,
-			dbname = dbfolder ,
+			dbtype="SQLite" ,
+			dbname = dbfile ,
 			combined.weights = FALSE
 		)
 
@@ -149,6 +150,7 @@ test_that("subsets equal svyby",{
 	sby_dbr <- svyby( ~eqincome, by = ~hsize, design = dbd_eusilc_rep, FUN = svyarpt)
 
 	dbRemoveTable( conn , 'eusilc' )
+		dbDisconnect( conn )
 
 
 	# compare database-backed designs to non-database-backed designs

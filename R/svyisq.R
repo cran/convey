@@ -30,7 +30,7 @@
 #' @keywords survey
 #'
 #' @examples
-#' library(vardpoor)
+#' library(laeken)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 #' library(survey)
 #' des_eusilc <- svydesign(ids = ~rb030, strata =~db040,  weights = ~rb050, data = eusilc)
@@ -53,10 +53,10 @@
 #' svyisq( ~ py010n , design = des_eusilc_rep , .20,  na.rm = TRUE )
 #'
 #' # database-backed design
-#' library(MonetDBLite)
+#' library(RSQLite)
 #' library(DBI)
-#' dbfolder <- tempdir()
-#' conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+#' dbfile <- tempfile()
+#' conn <- dbConnect( RSQLite::SQLite() , dbfile )
 #' dbWriteTable( conn , 'eusilc' , eusilc )
 #'
 #' dbd_eusilc <-
@@ -65,8 +65,8 @@
 #' 		strata = ~db040 , 
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
-#' 		dbname=dbfolder,
-#' 		dbtype="MonetDBLite"
+#' 		dbname=dbfile,
+#' 		dbtype="SQLite"
 #' 	)
 #' 
 #' dbd_eusilc <- convey_prep( dbd_eusilc )

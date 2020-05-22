@@ -18,7 +18,7 @@
 #' @seealso \code{\link{svygini}}
 #'
 #' @references Lucio Barabesi, Giancarlo Diana and Pier Francesco Perri (2016). Linearization of inequality indexes in the design-based framework.
-#' Statistics. URL \url{https://www.tandfonline.com/doi/pdf/10.1080/02331888.2015.1135924}.
+#' Statistics. URL \url{http://www.tandfonline.com/doi/pdf/10.1080/02331888.2015.1135924}.
 #'
 #' Matti Langel (2012). Measuring inequality in finite population sampling.
 #' PhD thesis: Universite de Neuchatel,
@@ -28,7 +28,7 @@
 #'
 #' @examples
 #' library(survey)
-#' library(vardpoor)
+#' library(laeken)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 #'
 #' # linearized design
@@ -58,10 +58,10 @@
 #' svyzenga(~py010n, des_eusilc_rep, na.rm = TRUE )
 #'
 #' # database-backed design
-#' library(MonetDBLite)
+#' library(RSQLite)
 #' library(DBI)
-#' dbfolder <- tempdir()
-#' conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+#' dbfile <- tempfile()
+#' conn <- dbConnect( RSQLite::SQLite() , dbfile )
 #' dbWriteTable( conn , 'eusilc' , eusilc )
 #'
 #' dbd_eusilc <-
@@ -70,8 +70,8 @@
 #' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
-#' 		dbname=dbfolder,
-#' 		dbtype="MonetDBLite"
+#' 		dbname=dbfile,
+#' 		dbtype="SQLite"
 #' 	)
 #'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -109,8 +109,6 @@ svyzenga <- function(formula, design, ...) {
 #' @rdname svyzenga
 #' @export
 svyzenga.survey.design <- function( formula, design, na.rm = FALSE, ... ) {
-
-  if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your linearized survey design object immediately after creating it with the svydesign() function.")
 
   incvar <- model.frame(formula, design$variables, na.action = na.pass)[[1]]
 
@@ -166,18 +164,17 @@ svyzenga.survey.design <- function( formula, design, na.rm = FALSE, ... ) {
 			this_H_y = H_y ,
 			this_K_y = K_y ,
 			this_Tot = Tot ,
-			this_w = w ,
-			this_w_sum = sum( w )
+			this_w = w
 		)
 
 	zenga_df[ , 'line1' ] <-
 		- ( zenga_df[ , 'this_N' ] - zenga_df[ , 'this_H_y' ] )*( zenga_df[ , 'this_Tot' ] - zenga_df[ , 'this_K_y' ] ) / ( zenga_df[ , 'this_N' ] * zenga_df[ , 'this_H_y' ] * zenga_df[ , 'this_K_y' ] )
 
 	zenga_df[ , 'line2' ] <-
-		- ( 1 / zenga_df[ , 'this_N' ]^2 ) * sum( w * ( zenga_df[ , 'this_Tot' ] - zenga_df[ , 'this_K_y' ] ) / zenga_df[ , 'this_K_y' ] )
+		- ( 1 / zenga_df[ , 'this_N' ]^2 ) * sum( zenga_df[ , 'this_w' ] * ( ( zenga_df[ , 'this_Tot' ] - zenga_df[ , 'this_K_y' ] ) / zenga_df[ , 'this_K_y' ] ) )
 
 	zenga_df[ , 'line3' ] <-
-		- ( zenga_df[ , 'this_incvar' ] / zenga_df[ , 'this_N' ] ) * sum( w * ( zenga_df[ , 'this_N' ] - zenga_df[ , 'this_H_y' ] ) / ( zenga_df[ , 'this_H_y' ] * zenga_df[ , 'this_K_y' ] ) )
+		- ( zenga_df[ , 'this_incvar' ] / zenga_df[ , 'this_N' ] ) * sum( zenga_df[ , 'this_w' ] * ( zenga_df[ , 'this_N' ] - zenga_df[ , 'this_H_y' ] ) / ( zenga_df[ , 'this_H_y' ] * zenga_df[ , 'this_K_y' ] ) )
 
 	zenga_df[ , 'line4' ] <-
 		rev( cumsum( rev( zenga_df[ , 'this_w' ] * ( ( zenga_df[ , 'this_Tot' ] - zenga_df[ , 'this_K_y' ] ) / ( zenga_df[ , 'this_H_y' ]^2 * zenga_df[ , 'this_K_y' ] ) ) ) ) )
@@ -194,13 +191,13 @@ svyzenga.survey.design <- function( formula, design, na.rm = FALSE, ... ) {
   z_if[ z_if != 0 ] <- as.numeric( my_outvec )
   z_if <- z_if[ order(ordincvar) ]
 
-  variance <- survey::svyrecvar( z_if/design$prob, design$cluster,
-                                 design$strata, design$fpc, postStrata = design$postStrata)
+  variance <- survey::svyrecvar( z_if/design$prob, design$cluster, design$strata, design$fpc, postStrata = design$postStrata)
 
   colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
   class(rval) <- c( "cvystat" , "svystat" )
   attr(rval, "var") <- variance
   attr(rval, "statistic") <- "zenga"
+  attr(rval, "lin") <- z_if
 
   return( rval )
 
@@ -209,10 +206,8 @@ svyzenga.survey.design <- function( formula, design, na.rm = FALSE, ... ) {
 #' @rdname svyzenga
 #' @export
 svyzenga.svyrep.design <- function(formula, design, na.rm=FALSE, ...) {
+
   incvar <- model.frame(formula, design$variables, na.action = na.pass)[[1]]
-
-  if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your replicate-weighted survey design object immediately after creating it with the svrepdesign() function.")
-
 
   if(na.rm){
     nas<-is.na(incvar)
@@ -274,21 +269,7 @@ svyzenga.svyrep.design <- function(formula, design, na.rm=FALSE, ...) {
 svyzenga.DBIsvydesign <-
   function (formula, design, ...) {
 
-    if (!( "logical" %in% class(attr(design, "full_design"))) ){
-
-      full_design <- attr( design , "full_design" )
-
-      full_design$variables <- getvars(formula, attr( design , "full_design" )$db$connection, attr( design , "full_design" )$db$tablename,
-                                       updates = attr( design , "full_design" )$updates, subset = attr( design , "full_design" )$subset)
-
-      attr( design , "full_design" ) <- full_design
-
-      rm( full_design )
-
-    }
-
-    design$variables <- getvars(formula, design$db$connection, design$db$tablename,
-                                updates = design$updates, subset = design$subset)
+  design$variables <- getvars(formula, design$db$connection, design$db$tablename, updates = design$updates, subset = design$subset)
 
     NextMethod("svyzenga", design)
   }

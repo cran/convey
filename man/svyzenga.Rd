@@ -38,7 +38,7 @@ This function is experimental and is subject to changes in later versions.
 }
 \examples{
 library(survey)
-library(vardpoor)
+library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
@@ -68,10 +68,10 @@ svyzenga(~py010n, des_eusilc, na.rm = TRUE )
 svyzenga(~py010n, des_eusilc_rep, na.rm = TRUE )
 
 # database-backed design
-library(MonetDBLite)
+library(RSQLite)
 library(DBI)
-dbfolder <- tempdir()
-conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+dbfile <- tempfile()
+conn <- dbConnect( RSQLite::SQLite() , dbfile )
 dbWriteTable( conn , 'eusilc' , eusilc )
 
 dbd_eusilc <-
@@ -80,8 +80,8 @@ dbd_eusilc <-
 		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
-		dbname=dbfolder,
-		dbtype="MonetDBLite"
+		dbname=dbfile,
+		dbtype="SQLite"
 	)
 
 dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -108,7 +108,7 @@ dbDisconnect( conn , shutdown = TRUE )
 }
 \references{
 Lucio Barabesi, Giancarlo Diana and Pier Francesco Perri (2016). Linearization of inequality indexes in the design-based framework.
-Statistics. URL \url{https://www.tandfonline.com/doi/pdf/10.1080/02331888.2015.1135924}.
+Statistics. URL \url{http://www.tandfonline.com/doi/pdf/10.1080/02331888.2015.1135924}.
 
 Matti Langel (2012). Measuring inequality in finite population sampling.
 PhD thesis: Universite de Neuchatel,

@@ -9,11 +9,9 @@
 \usage{
 svyamato(formula, design, ...)
 
-\method{svyamato}{survey.design}(formula, design, standardized = FALSE,
-  na.rm = FALSE, ...)
+\method{svyamato}{survey.design}(formula, design, standardized = FALSE, na.rm = FALSE, ...)
 
-\method{svyamato}{svyrep.design}(formula, design, standardized = FALSE,
-  na.rm = FALSE, ...)
+\method{svyamato}{svyrep.design}(formula, design, standardized = FALSE, na.rm = FALSE, ...)
 
 \method{svyamato}{DBIsvydesign}(formula, design, ...)
 }
@@ -44,7 +42,7 @@ This function is experimental and is subject to change in later versions.
 }
 \examples{
 library(survey)
-library(vardpoor)
+library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
@@ -74,10 +72,10 @@ svyamato(~py010n, des_eusilc, na.rm = TRUE )
 svyamato(~py010n, des_eusilc_rep, na.rm = TRUE )
 
 # database-backed design
-library(MonetDBLite)
+library(RSQLite)
 library(DBI)
-dbfolder <- tempdir()
-conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+dbfile <- tempfile()
+conn <- dbConnect( RSQLite::SQLite() , dbfile )
 dbWriteTable( conn , 'eusilc' , eusilc )
 
 dbd_eusilc <-
@@ -86,8 +84,8 @@ dbd_eusilc <-
 		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
-		dbname=dbfolder,
-		dbtype="MonetDBLite"
+		dbname=dbfile,
+		dbtype="SQLite"
 	)
 
 dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -114,7 +112,7 @@ dbDisconnect( conn , shutdown = TRUE )
 }
 \references{
 Lucio Barabesi, Giancarlo Diana and Pier Francesco Perri (2016). Linearization of inequality indexes in the design-based framework.
-Statistics. URL \url{https://www.tandfonline.com/doi/pdf/10.1080/02331888.2015.1135924}.
+Statistics. URL \url{http://www.tandfonline.com/doi/pdf/10.1080/02331888.2015.1135924}.
 
 Barry C. Arnold (2012). On the Amato inequality index.
 Statistics & Probability Letters, v. 82, n. 8, August 2012, pp. 1504-1506, ISSN 0167-7152.

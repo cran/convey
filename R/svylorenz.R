@@ -30,7 +30,7 @@
 #'
 #' @references Milorad Kovacevic and David Binder (1997). Variance Estimation for Measures of Income
 #' Inequality and Polarization - The Estimating Equations Approach. \emph{Journal of Official Statistics},
-#' Vol.13, No.1, 1997. pp. 41 58. URL \url{http://www.jos.nu/Articles/abstract.asp?article=13141}.
+#' Vol.13, No.1, 1997. pp. 41 58. URL \url{https://www.scb.se/contentassets/ca21efb41fee47d293bbee5bf7be7fb3/variance-estimation-for-measures-of-income-inequality-and-polarization---the-estimating-equations-approach.pdf}.
 #'
 #' Shlomo Yitzhaki and Robert Lerman (1989). Improving the accuracy of estimates of Gini coefficients.
 #' \emph{Journal of Econometrics}, Vol.42(1), pp. 43-47, September.
@@ -42,7 +42,7 @@
 #' @examples
 #'
 #' library(survey)
-#' library(vardpoor)
+#' library(laeken)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 #'
 #' # linearized design
@@ -70,10 +70,10 @@
 #'
 #'
 #' # database-backed design
-#' library(MonetDBLite)
+#' library(RSQLite)
 #' library(DBI)
-#' dbfolder <- tempdir()
-#' conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+#' dbfile <- tempfile()
+#' conn <- dbConnect( RSQLite::SQLite() , dbfile )
 #' dbWriteTable( conn , 'eusilc' , eusilc )
 #'
 #' dbd_eusilc <-
@@ -82,8 +82,8 @@
 #' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
-#' 		dbname=dbfolder,
-#' 		dbtype="MonetDBLite"
+#' 		dbname=dbfile,
+#' 		dbtype="SQLite"
 #' 	)
 #'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -156,8 +156,6 @@ svylorenzpolygon_wrap <-
 #' @rdname svylorenz
 #' @export
 svylorenz.survey.design <- function ( formula , design, quantiles = seq(0,1,.1), empirical = FALSE, plot = TRUE, add = FALSE, curve.col = "red", ci = TRUE, alpha = .05, na.rm = FALSE , ... ) {
-
-  if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your linearized survey design object immediately after creating it with the svydesign() function.")
 
   # quantile function:
   wtd.qtl <- function (x, q = .5, weights = NULL ) {
@@ -368,8 +366,6 @@ svylorenz.survey.design <- function ( formula , design, quantiles = seq(0,1,.1),
 #' @export
 svylorenz.svyrep.design <- function(formula , design, quantiles = seq(0,1,.1), empirical = FALSE, plot = TRUE, add = FALSE, curve.col = "red", ci = TRUE, alpha = .05, na.rm = FALSE , ...) {
 
-  if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your replicate-weighted survey design object immediately after creating it with the svrepdesign() function.")
-
   # quantile function:
   wtd.qtl <- function (x, q = .5, weights = NULL ) {
 
@@ -552,24 +548,9 @@ svylorenz.svyrep.design <- function(formula , design, quantiles = seq(0,1,.1), e
 
 #' @rdname svylorenz
 #' @export
-svylorenz.DBIsvydesign <- function (formula, design, ...)
-{
+svylorenz.DBIsvydesign <- function (formula, design, ...) {
 
-  if (!( "logical" %in% class(attr(design, "full_design"))) ){
-
-    full_design <- attr( design , "full_design" )
-
-    full_design$variables <- getvars(formula, attr( design , "full_design" )$db$connection, attr( design , "full_design" )$db$tablename,
-                                     updates = attr( design , "full_design" )$updates, subset = attr( design , "full_design" )$subset)
-
-    attr( design , "full_design" ) <- full_design
-
-    rm( full_design )
-
-  }
-
-  design$variables <- getvars(formula, design$db$connection, design$db$tablename,
-                              updates = design$updates, subset = design$subset)
+  design$variables <- getvars(formula, design$db$connection, design$db$tablename, updates = design$updates, subset = design$subset)
 
   NextMethod("svylorenz", design)
 

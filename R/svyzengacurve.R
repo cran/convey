@@ -46,7 +46,7 @@
 #' @examples
 #'
 #' library(survey)
-#' library(vardpoor)
+#' library(laeken)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 #'
 #' # linearized design
@@ -74,10 +74,10 @@
 #'
 #'
 #' # database-backed design
-#' library(MonetDBLite)
+#' library(RSQLite)
 #' library(DBI)
-#' dbfolder <- tempdir()
-#' conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+#' dbfile <- tempfile()
+#' conn <- dbConnect( RSQLite::SQLite() , dbfile )
 #' dbWriteTable( conn , 'eusilc' , eusilc )
 #'
 #' dbd_eusilc <-
@@ -86,8 +86,8 @@
 #' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
-#' 		dbname=dbfolder,
-#' 		dbtype="MonetDBLite"
+#' 		dbname=dbfile,
+#' 		dbtype="SQLite"
 #' 	)
 #'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -163,8 +163,6 @@ svyzengacurvepolygon_wrap <-
 #' @rdname svyzengacurve
 #' @export
 svyzengacurve.survey.design <- function ( formula , design, quantiles = seq(0,1,.1), empirical = FALSE, plot = TRUE, add = FALSE, curve.col = "red", ci = TRUE, alpha = .05, na.rm = FALSE , ... ) {
-
-  if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your linearized survey design object immediately after creating it with the svydesign() function.")
 
   quantiles <- quantiles[ !(quantiles %in% 0:1) ]
 
@@ -359,8 +357,6 @@ svyzengacurve.survey.design <- function ( formula , design, quantiles = seq(0,1,
 #' @export
 svyzengacurve.svyrep.design <- function(formula , design, quantiles = seq(0,1,.1), empirical = FALSE, plot = TRUE, add = FALSE, curve.col = "red", ci = TRUE, alpha = .05, na.rm = FALSE , ...) {
 
-  if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your replicate-weighted survey design object immediately after creating it with the svrepdesign() function.")
-
   quantiles <- quantiles[ !(quantiles %in% 0:1) ]
 
   # quantile function:
@@ -521,24 +517,9 @@ svyzengacurve.svyrep.design <- function(formula , design, quantiles = seq(0,1,.1
 
 #' @rdname svyzengacurve
 #' @export
-svyzengacurve.DBIsvydesign <- function (formula, design, ...)
-{
+svyzengacurve.DBIsvydesign <- function (formula, design, ...) {
 
-  if (!( "logical" %in% class(attr(design, "full_design"))) ){
-
-    full_design <- attr( design , "full_design" )
-
-    full_design$variables <- getvars(formula, attr( design , "full_design" )$db$connection, attr( design , "full_design" )$db$tablename,
-                                     updates = attr( design , "full_design" )$updates, subset = attr( design , "full_design" )$subset)
-
-    attr( design , "full_design" ) <- full_design
-
-    rm( full_design )
-
-  }
-
-  design$variables <- getvars(formula, design$db$connection, design$db$tablename,
-                              updates = design$updates, subset = design$subset)
+  design$variables <- getvars(formula, design$db$connection, design$db$tablename, updates = design$updates, subset = design$subset)
 
   NextMethod("svyzengacurve", design)
 

@@ -9,11 +9,23 @@
 \usage{
 svysen(formula, design, ...)
 
-\method{svysen}{survey.design}(formula, design, abs_thresh = NULL,
-  na.rm = FALSE, components = FALSE, ...)
+\method{svysen}{survey.design}(
+  formula,
+  design,
+  abs_thresh = NULL,
+  na.rm = FALSE,
+  components = FALSE,
+  ...
+)
 
-\method{svysen}{svyrep.design}(formula, design, abs_thresh = NULL,
-  na.rm = FALSE, components = FALSE, ...)
+\method{svysen}{svyrep.design}(
+  formula,
+  design,
+  abs_thresh = NULL,
+  na.rm = FALSE,
+  components = FALSE,
+  ...
+)
 
 \method{svysen}{DBIsvydesign}(formula, design, ...)
 }
@@ -44,7 +56,7 @@ This function is experimental and is subject to change in later versions.
 }
 \examples{
 library(survey)
-library(vardpoor)
+library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
@@ -66,10 +78,10 @@ svysen( ~eqincome, des_eusilc_rep, abs_thresh = 10000 )
 \dontrun{
 
 # database-backed design
-library(MonetDBLite)
+library(RSQLite)
 library(DBI)
-dbfolder <- tempdir()
-conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+dbfile <- tempfile()
+conn <- dbConnect( RSQLite::SQLite() , dbfile )
 dbWriteTable( conn , 'eusilc' , eusilc )
 
 dbd_eusilc <-
@@ -78,8 +90,8 @@ dbd_eusilc <-
 		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
-		dbname=dbfolder,
-		dbtype="MonetDBLite"
+		dbname=dbfile,
+		dbtype="SQLite"
 	)
 
 

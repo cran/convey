@@ -9,11 +9,9 @@
 \usage{
 svyjdivdec(formula, subgroup, design, ...)
 
-\method{svyjdivdec}{survey.design}(formula, subgroup, design, na.rm = FALSE,
-  ...)
+\method{svyjdivdec}{survey.design}(formula, subgroup, design, na.rm = FALSE, ...)
 
-\method{svyjdivdec}{svyrep.design}(formula, subgroup, design, na.rm = FALSE,
-  ...)
+\method{svyjdivdec}{svyrep.design}(formula, subgroup, design, na.rm = FALSE, ...)
 
 \method{svyjdivdec}{DBIsvydesign}(formula, subgroup, design, ...)
 }
@@ -44,7 +42,7 @@ This function is experimental and is subject to change in later versions.
 }
 \examples{
 library(survey)
-library(vardpoor)
+library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
@@ -74,10 +72,10 @@ svyjdivdec( ~py010n , ~rb090 , sub_des_eusilc_rep )
 svyjdivdec( ~py010n , ~rb090 , sub_des_eusilc_rep , na.rm = TRUE )
 
 # database-backed design
-library(MonetDBLite)
+library(RSQLite)
 library(DBI)
-dbfolder <- tempdir()
-conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+dbfile <- tempfile()
+conn <- dbConnect( RSQLite::SQLite() , dbfile )
 dbWriteTable( conn , 'eusilc' , eusilc )
 
 dbd_eusilc <-
@@ -86,8 +84,8 @@ dbd_eusilc <-
 		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
-		dbname=dbfolder,
-		dbtype="MonetDBLite"
+		dbname=dbfile,
+		dbtype="SQLite"
 	)
 
 dbd_eusilc <- convey_prep( dbd_eusilc )

@@ -21,7 +21,7 @@
 #'
 #' @references Anthony F. Shorrocks (1995). Revisiting the Sen Poverty Index.
 #' \emph{Econometrica}, v. 63, n. 5, pp. 1225-230.
-#' URL \url{http://dx.doi.org/10.2307/2171728}.
+#' URL \url{http://www.jstor.org/stable/2171728}.
 #'
 #' Dominique Thon (1979). On measuring poverty.
 #' \emph{Review of Income and Wealth}, v. 25, n. 4, pp. 429-439.
@@ -35,7 +35,7 @@
 #'
 #' @examples
 #' library(survey)
-#' library(vardpoor)
+#' library(laeken)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 #'
 #' # linearized design
@@ -57,10 +57,10 @@
 #' \dontrun{
 #'
 #' # database-backed design
-#' library(MonetDBLite)
+#' library(RSQLite)
 #' library(DBI)
-#' dbfolder <- tempdir()
-#' conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+#' dbfile <- tempfile()
+#' conn <- dbConnect( RSQLite::SQLite() , dbfile )
 #' dbWriteTable( conn , 'eusilc' , eusilc )
 #'
 #' dbd_eusilc <-
@@ -69,8 +69,8 @@
 #' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
-#' 		dbname=dbfolder,
-#' 		dbtype="MonetDBLite"
+#' 		dbname=dbfile,
+#' 		dbtype="SQLite"
 #' 	)
 #'
 #'

@@ -32,7 +32,7 @@
 #'
 #' @examples
 #' library(survey)
-#' library(vardpoor)
+#' library(laeken)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 #'
 #' # linearized design
@@ -72,10 +72,10 @@
 #' svygeidec( ~py010n , ~rb090 , sub_des_eusilc_rep , epsilon = 1, na.rm = TRUE )
 #'
 #' # database-backed design
-#' library(MonetDBLite)
+#' library(RSQLite)
 #' library(DBI)
-#' dbfolder <- tempdir()
-#' conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+#' dbfile <- tempfile()
+#' conn <- dbConnect( RSQLite::SQLite() , dbfile )
 #' dbWriteTable( conn , 'eusilc' , eusilc )
 #'
 #' dbd_eusilc <-
@@ -84,8 +84,8 @@
 #' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
-#' 		dbname=dbfolder,
-#' 		dbtype="MonetDBLite"
+#' 		dbname=dbfile,
+#' 		dbtype="SQLite"
 #' 	)
 #'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -132,8 +132,6 @@ svygeidec <-
 svygeidec.survey.design <-
   function ( formula, subgroup, design, epsilon = 1, na.rm = FALSE, ... ) {
 
-    if (is.null(attr(design, "full_design") ) ) stop("you must run the ?convey_prep function on your linearized survey design object immediately after creating it with the svydesign() function.")
-
     w <- 1/design$prob
     incvar <- model.frame(formula, design$variables, na.action = na.pass)[,]
     grpvar <- model.frame( subgroup, design$variables, na.action = na.pass)[,]
@@ -143,13 +141,13 @@ svygeidec.survey.design <-
     }
 
     if (na.rm) {
-      nas <- ( is.na(incvar) | is.na(grpvar ) ) & w > 0
+      nas <- ( is.na(incvar) | is.na(grpvar ) )
       design <- design[nas == 0, ]
       w <- 1/design$prob
     }
 
 
-    if ( any( incvar[ w != 0 ] == 0, na.rm = TRUE) ) stop( paste("the GEI is undefined for zero incomes if epsilon ==", epsilon) )
+    if ( any( incvar[ w > 0 ] <= 0, na.rm = TRUE) ) stop( paste("the GEI is undefined for incomes <= 0 if epsilon ==", epsilon) )
 
     if ( any( ( is.na(incvar) | is.na(grpvar ) ) & w > 0 ) ) {
 
@@ -182,18 +180,12 @@ svygeidec.survey.design <-
             U_fn( incvar , w , 0 )^( -1 ) - 1
         )
 
-      ttl.lin [ w == 0 ] <- 0
-
-      ttl.variance <- survey::svyrecvar(ttl.lin/design$prob, design$cluster,design$strata, design$fpc, postStrata = design$postStrata)
-
     } else if ( epsilon == 1) {
 
       ttl.lin <-
         U_fn( incvar , w , 1 )^( -1 ) * incvar * log( incvar ) -
         U_fn( incvar , w , 1 )^( -1 ) * ( T_fn( incvar , w , 1 ) * U_fn( incvar , w, 1 )^( -1 ) + 1 ) * incvar +
         U_fn( incvar , w , 0 )^( -1 )
-
-      ttl.lin [ w == 0 ] <- 0
 
     } else {
 
@@ -213,9 +205,11 @@ svygeidec.survey.design <-
         U_fn( incvar , w , 1 )^( -epsilon ) *
         incvar^(epsilon)
 
-      ttl.lin[ w == 0 ] <- 0
-
     }
+
+    ttl.lin [ w == 0 ] <- 0
+
+    ttl.variance <- survey::svyrecvar(ttl.lin/design$prob, design$cluster,design$strata, design$fpc, postStrata = design$postStrata)
 
     # within:
     grp.gei <- NULL
@@ -237,12 +231,10 @@ svygeidec.survey.design <-
       grp.gei[i] <- calc.gei( x = incvar, weights = w_i, epsilon = epsilon )
 
       grp.U_0[i] <- sum( w_i )
-      grp.U_0.lin[,i] <- rep(1, length(incvar) )
-      grp.U_0.lin[ w_i == 0, i ] <- 0
+      grp.U_0.lin[ , i] <- ifelse( w_i > 0 , 1 , 0 )
 
       grp.U_1[i] <- sum( incvar[ w_i > 0 ] * w_i[ w_i > 0 ] )
-      grp.U_1.lin[,i] <- incvar
-      grp.U_1.lin[ w_i == 0, i ] <- 0
+      grp.U_1.lin[,i] <- ifelse( w_i > 0 , incvar , 0)
 
       U_0_i <- list( value = grp.U_0[i] , lin = grp.U_0.lin[,i] )
       U_0 <- list( value = sum( w ) , lin = rep( 1 , length(incvar) ) )
@@ -250,7 +242,6 @@ svygeidec.survey.design <-
       grp.est <- contrastinf( quote( U_0_i / U_0 ) , list_all )
       grp.p[i] <- grp.est$value
       grp.p.lin[ , i ] <- grp.est$lin
-      grp.p.lin[ w_i == 0, i ] <- 0
       rm(grp.est)
 
 
@@ -259,53 +250,47 @@ svygeidec.survey.design <-
       list_all <- list( U_0_i = U_0_i, U_0 = U_0, U_1_i = U_1_i, U_1 = U_1 )
       grp.est <- contrastinf( quote( (U_0_i / U_0) * ( U_1_i / U_0_i ) / ( U_1 / U_0 ) ) , list_all )
       grp.g[i] <- grp.est$value
+      grp.g.lin[ , i ] <- ifelse( w_i > 0 , grp.est$lin , 0 )
       grp.g.lin[ , i ] <- grp.est$lin
-      grp.g.lin[ w_i == 0, i ] <- 0
       rm(grp.est)
 
 
       if ( epsilon == 0 ){
         grp.lin [ , i ] <-
-          -U_fn( incvar , w_i , 0 )^( -1 ) *
-          log( incvar ) +
-          U_fn( incvar , w_i ,  1 )^( -1 ) *
-          incvar +
-          U_fn( incvar , w_i , 0 )^( -1 ) *
-          (
-            T_fn( incvar , w_i , 0 ) *
-              U_fn( incvar , w_i , 0 )^( -1 ) - 1
-          )
-
-        grp.lin [ w_i == 0, i ] <- 0
+          ifelse( w_i > 0 ,
+                  -U_fn( incvar , w_i , 0 )^( -1 ) * log( incvar ) +
+                    U_fn( incvar , w_i ,  1 )^( -1 ) * incvar +
+                    U_fn( incvar , w_i , 0 )^( -1 ) * ( T_fn( incvar , w_i , 0 ) * U_fn( incvar , w_i , 0 )^( -1 ) - 1 ) ,
+                  0 )
 
       } else if ( epsilon == 1) {
 
         grp.lin[ , i ] <-
-          U_fn( incvar , w_i , 1 )^( -1 ) * incvar * log( incvar ) -
-          U_fn( incvar , w_i , 1 )^( -1 ) * ( T_fn( incvar , w_i , 1 ) * U_fn( incvar , w_i, 1 )^( -1 ) + 1 ) * incvar +
-          U_fn( incvar , w_i , 0 )^( -1 )
-
-        grp.lin [ w_i == 0 ] <- 0
+          ifelse( w_i > 0 ,
+                  U_fn( incvar , w_i , 1 )^( -1 ) * incvar * log( incvar ) -
+                    U_fn( incvar , w_i , 1 )^( -1 ) * ( T_fn( incvar , w_i , 1 ) * U_fn( incvar , w_i, 1 )^( -1 ) + 1 ) * incvar +
+                    U_fn( incvar , w_i , 0 )^( -1 ) ,
+                  0 )
 
       } else {
 
         grp.lin[ , i ] <-
-          ( epsilon )^( -1 ) *
-          U_fn( incvar , w_i , epsilon ) *
-          U_fn( incvar , w_i , 1 )^( -epsilon ) *
-          U_fn( incvar , w_i , 0 )^( epsilon - 2 ) -
+          ifelse( w_i > 0 ,
+                  ( epsilon )^( -1 ) *
+                    U_fn( incvar , w_i , epsilon ) *
+                    U_fn( incvar , w_i , 1 )^( -epsilon ) *
+                    U_fn( incvar , w_i , 0 )^( epsilon - 2 ) -
 
-          ( epsilon - 1 )^( -1 ) *
-          U_fn( incvar , w_i , epsilon ) *
-          U_fn( incvar , w_i , 1 )^( -epsilon -1 ) *
-          U_fn( incvar , w_i , 0 )^( epsilon - 1 ) * incvar +
+                    ( epsilon - 1 )^( -1 ) *
+                    U_fn( incvar , w_i , epsilon ) *
+                    U_fn( incvar , w_i , 1 )^( -epsilon -1 ) *
+                    U_fn( incvar , w_i , 0 )^( epsilon - 1 ) * incvar +
 
-          ( epsilon^2 - epsilon )^( -1 ) *
-          U_fn( incvar , w_i , 0 )^( epsilon - 1 ) *
-          U_fn( incvar , w_i , 1 )^( -epsilon ) *
-          incvar^(epsilon)
-
-        grp.lin[ w_i == 0 , i ] <- 0
+                    ( epsilon^2 - epsilon )^( -1 ) *
+                    U_fn( incvar , w_i , 0 )^( epsilon - 1 ) *
+                    U_fn( incvar , w_i , 1 )^( -epsilon ) *
+                    incvar^(epsilon) ,
+                  0 )
 
       }
       rm(i, w_i)
@@ -327,24 +312,21 @@ svygeidec.survey.design <-
 
         grp.est <- contrastinf( quote( p_i * gei_i ) , list_all )
         wtd.gei[i] <- grp.est$value
-        wtd.gei.lin[ , i ] <- grp.est$lin
-        wtd.gei.lin[ w_i == 0 , i ] <- 0
+        wtd.gei.lin[ , i ] <- ifelse( w_i > 0 , grp.est$lin , 0 )
         rm(grp.est)
 
       } else if ( epsilon == 1 ) {
 
         grp.est <- contrastinf( quote( g_i * gei_i ) , list_all )
         wtd.gei[i] <- grp.est$value
-        wtd.gei.lin[ , i ] <- grp.est$lin
-        wtd.gei.lin[ w_i == 0 , i ] <- 0
+        wtd.gei.lin[ , i ] <- ifelse( w_i > 0 , grp.est$lin , 0 )
         rm(grp.est)
 
       } else {
 
         grp.est <- contrastinf( quote( g_i^epsilon * p_i^(1-epsilon) * gei_i ) , list_all )
         wtd.gei[i] <- grp.est$value
-        wtd.gei.lin[ , i ] <- grp.est$lin
-        wtd.gei.lin[ w_i == 0 , i ] <- 0
+        wtd.gei.lin[ , i ] <- ifelse( w_i > 0 , grp.est$lin , 0 )
         rm(grp.est)
 
       }
@@ -382,8 +364,6 @@ svygeidec.survey.design <-
 #' @export
 svygeidec.svyrep.design <-
   function( formula, subgroup, design, epsilon = 1, na.rm=FALSE, ...) {
-
-    if (is.null(attr(design, "full_design") ) ) stop("you must run the ?convey_prep function on your replicate-weighted survey design object immediately after creating it with the svrepdesign() function.")
 
     incvar <- model.frame(formula, design$variables, na.action = na.pass)[,]
     grpvar <- model.frame( subgroup, design$variables, na.action = na.pass)[,]
@@ -498,36 +478,15 @@ svygeidec.svyrep.design <-
 #' @rdname svygeidec
 #' @export
 svygeidec.DBIsvydesign <-
-	function (formula, subgroup, design, ...) {
+  function (formula, subgroup, design, ...) {
 
+    design$variables <-
+      cbind(
+        getvars(formula, design$db$connection,design$db$tablename, updates = design$updates, subset = design$subset),
+        getvars(subgroup, design$db$connection, design$db$tablename,updates = design$updates, subset = design$subset)
+      )
 
-		if (!( "logical" %in% class(attr(design, "full_design") ) ) ){
+    NextMethod("svygeidec", design)
 
-			full_design <- attr( design , "full_design" )
-
-			full_design$variables <-
-				cbind(
-					getvars(formula, attr( design , "full_design" )$db$connection, attr( design , "full_design" )$db$tablename,updates = attr( design , "full_design" )$updates, subset = attr( design , "full_design" )$subset),
-
-					getvars(subgroup, attr( design , "full_design" )$db$connection, attr( design , "full_design" )$db$tablename,updates = attr( design , "full_design" )$updates, subset = attr( design , "full_design" )$subset)
-				)
-
-
-
-			attr( design , "full_design" ) <- full_design
-
-			rm( full_design )
-
-		}
-
-		design$variables <-
-			cbind(
-				getvars(formula, design$db$connection,design$db$tablename, updates = design$updates, subset = design$subset),
-
-				getvars(subgroup, design$db$connection, design$db$tablename,updates = design$updates, subset = design$subset)
-			)
-
-		NextMethod("svygeidec", design)
-
-	}
+  }
 

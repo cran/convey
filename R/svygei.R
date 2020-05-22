@@ -30,7 +30,7 @@
 #'
 #' @examples
 #' library(survey)
-#' library(vardpoor)
+#' library(laeken)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 #'
 #' # linearized design
@@ -76,10 +76,10 @@
 #' svygei( ~py010n , subset(des_eusilc_rep, py010n > 0 | is.na(py010n) ), epsilon = 2, na.rm = TRUE )
 #'
 #' # database-backed design
-#' library(MonetDBLite)
+#' library(RSQLite)
 #' library(DBI)
-#' dbfolder <- tempdir()
-#' conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+#' dbfile <- tempfile()
+#' conn <- dbConnect( RSQLite::SQLite() , dbfile )
 #' dbWriteTable( conn , 'eusilc' , eusilc )
 #'
 #' dbd_eusilc <-
@@ -88,8 +88,8 @@
 #' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
-#' 		dbname=dbfolder,
-#' 		dbtype="MonetDBLite"
+#' 		dbname=dbfile,
+#' 		dbtype="SQLite"
 #' 	)
 #'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -134,8 +134,6 @@ svygei <-
 svygei.survey.design <-
 	function ( formula, design, epsilon = 1, na.rm = FALSE, ... ) {
 
-		if (is.null(attr(design, "full_design") ) ) stop("you must run the ?convey_prep function on your linearized survey design object immediately after creating it with the svydesign() function.")
-
 		incvar <- model.frame(formula, design$variables, na.action = na.pass)[[1]]
 
 		if (na.rm) {
@@ -145,7 +143,7 @@ svygei.survey.design <-
 		}
 
 		w <- 1/design$prob
-		if ( any( incvar[ w != 0 ] == 0, na.rm = TRUE) ) stop( paste("the GEI is undefined for zero incomes if epsilon ==", epsilon) )
+		if ( any( incvar[ w > 0 ] <= 0, na.rm = TRUE) ) stop( paste("the GEI is undefined for incomes <= 0 if epsilon ==", epsilon) )
 
 		rval <- calc.gei( x = incvar, weights = w, epsilon = epsilon )
 
@@ -161,20 +159,12 @@ svygei.survey.design <-
 					U_fn( incvar , w , 0 )^( -1 ) - 1
 				)
 
-			v[w == 0] <- 0
-
-			variance <- survey::svyrecvar(v/design$prob, design$cluster,design$strata, design$fpc, postStrata = design$postStrata)
-
 		} else if ( epsilon == 1) {
 
 			v <-
 				U_fn( incvar , w , 1 )^( -1 ) * incvar * log( incvar ) -
 				U_fn( incvar , w , 1 )^( -1 ) * ( T_fn( incvar , w , 1 ) * U_fn( incvar , w, 1 )^( -1 ) + 1 ) * incvar +
 				U_fn( incvar , w , 0 )^( -1 )
-
-			v[w == 0] <- 0
-
-			variance <- survey::svyrecvar(v/design$prob, design$cluster,design$strata, design$fpc, postStrata = design$postStrata)
 
 		} else {
 
@@ -194,16 +184,18 @@ svygei.survey.design <-
 				U_fn( incvar , w , 1 )^( -epsilon ) *
 				incvar^(epsilon)
 
-			v[w == 0] <- 0
-
-			variance <- survey::svyrecvar(v/design$prob, design$cluster,design$strata, design$fpc, postStrata = design$postStrata)
-
 		}
+
+		v[ w == 0 ] <- 0
+		# stopifnot( length( v ) == length( design$prob) )
+
+		variance <- survey::svyrecvar(v/design$prob, design$cluster,design$strata, design$fpc, postStrata = design$postStrata)
 
 		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
 		class(rval) <- c( "cvystat" , "svystat" )
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "gei"
+		attr(rval,"lin")<- v
 		attr(rval,"epsilon")<- epsilon
 		rval
 
@@ -214,8 +206,6 @@ svygei.survey.design <-
 #' @export
 svygei.svyrep.design <-
 	function(formula, design, epsilon = 1,na.rm=FALSE, ...) {
-
-		if (is.null(attr(design, "full_design") ) ) stop("you must run the ?convey_prep function on your replicate-weighted survey design object immediately after creating it with the svrepdesign() function.")
 
 		incvar <- model.frame(formula, design$variables, na.action = na.pass)[[1]]
 
@@ -242,9 +232,10 @@ svygei.svyrep.design <-
 
 			variance <- as.matrix(NA)
 			colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-			class(rval) <- "cvystat"
+			class(rval) <- c( "cvystat" , "svrepstat" )
 			attr(rval, "var") <- variance
-			attr(rval, "statistic") <- "generalized entropy index"
+			attr(rval, "statistic") <- "gei"
+			attr(rval,"epsilon")<- epsilon
 
 			return(rval)
 
@@ -260,6 +251,8 @@ svygei.svyrep.design <-
 		class(rval) <- c( "cvystat" , "svrepstat" )
 		attr(rval, "var") <- variance
 		attr(rval, "statistic") <- "gei"
+		attr(rval,"lin")<- NA
+		attr(rval,"epsilon")<- epsilon
 		return(rval)
 	}
 
@@ -268,19 +261,6 @@ svygei.svyrep.design <-
 #' @export
 svygei.DBIsvydesign <-
 		function (formula, design, ...) {
-
-		if (!( "logical" %in% class(attr(design, "full_design") ) ) ){
-
-			full_design <- attr( design , "full_design" )
-
-			full_design$variables <- getvars(formula, attr( design , "full_design" )$db$connection, attr( design , "full_design" )$db$tablename,
-			updates = attr( design , "full_design" )$updates, subset = attr( design , "full_design" )$subset)
-
-			attr( design , "full_design" ) <- full_design
-
-			rm( full_design )
-
-		}
 
 		design$variables <- getvars(formula, design$db$connection, design$db$tablename, updates = design$updates, subset = design$subset)
 

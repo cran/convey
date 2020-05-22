@@ -9,11 +9,9 @@
 \usage{
 svygei(formula, design, ...)
 
-\method{svygei}{survey.design}(formula, design, epsilon = 1, na.rm = FALSE,
-  ...)
+\method{svygei}{survey.design}(formula, design, epsilon = 1, na.rm = FALSE, ...)
 
-\method{svygei}{svyrep.design}(formula, design, epsilon = 1, na.rm = FALSE,
-  ...)
+\method{svygei}{svyrep.design}(formula, design, epsilon = 1, na.rm = FALSE, ...)
 
 \method{svygei}{DBIsvydesign}(formula, design, ...)
 }
@@ -41,7 +39,7 @@ This measure only allows for strictly positive variables.
 }
 \examples{
 library(survey)
-library(vardpoor)
+library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
@@ -87,10 +85,10 @@ svygei( ~py010n , subset(des_eusilc_rep, py010n > 0 | is.na(py010n) ), epsilon =
 svygei( ~py010n , subset(des_eusilc_rep, py010n > 0 | is.na(py010n) ), epsilon = 2, na.rm = TRUE )
 
 # database-backed design
-library(MonetDBLite)
+library(RSQLite)
 library(DBI)
-dbfolder <- tempdir()
-conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+dbfile <- tempfile()
+conn <- dbConnect( RSQLite::SQLite() , dbfile )
 dbWriteTable( conn , 'eusilc' , eusilc )
 
 dbd_eusilc <-
@@ -99,8 +97,8 @@ dbd_eusilc <-
 		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
-		dbname=dbfolder,
-		dbtype="MonetDBLite"
+		dbname=dbfile,
+		dbtype="SQLite"
 	)
 
 dbd_eusilc <- convey_prep( dbd_eusilc )

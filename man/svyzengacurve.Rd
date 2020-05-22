@@ -9,13 +9,33 @@
 \usage{
 svyzengacurve(formula, design, ...)
 
-\method{svyzengacurve}{survey.design}(formula, design, quantiles = seq(0, 1,
-  0.1), empirical = FALSE, plot = TRUE, add = FALSE, curve.col = "red",
-  ci = TRUE, alpha = 0.05, na.rm = FALSE, ...)
+\method{svyzengacurve}{survey.design}(
+  formula,
+  design,
+  quantiles = seq(0, 1, 0.1),
+  empirical = FALSE,
+  plot = TRUE,
+  add = FALSE,
+  curve.col = "red",
+  ci = TRUE,
+  alpha = 0.05,
+  na.rm = FALSE,
+  ...
+)
 
-\method{svyzengacurve}{svyrep.design}(formula, design, quantiles = seq(0, 1,
-  0.1), empirical = FALSE, plot = TRUE, add = FALSE, curve.col = "red",
-  ci = TRUE, alpha = 0.05, na.rm = FALSE, ...)
+\method{svyzengacurve}{svyrep.design}(
+  formula,
+  design,
+  quantiles = seq(0, 1, 0.1),
+  empirical = FALSE,
+  plot = TRUE,
+  add = FALSE,
+  curve.col = "red",
+  ci = TRUE,
+  alpha = 0.05,
+  na.rm = FALSE,
+  ...
+)
 
 \method{svyzengacurve}{DBIsvydesign}(formula, design, ...)
 }
@@ -65,7 +85,7 @@ This function is experimental and is subject to changes in later versions.
 \examples{
 
 library(survey)
-library(vardpoor)
+library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
@@ -93,10 +113,10 @@ svyzengacurve( ~py010n , des_eusilc_rep, alpha = .01, na.rm = TRUE )
 
 
 # database-backed design
-library(MonetDBLite)
+library(RSQLite)
 library(DBI)
-dbfolder <- tempdir()
-conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+dbfile <- tempfile()
+conn <- dbConnect( RSQLite::SQLite() , dbfile )
 dbWriteTable( conn , 'eusilc' , eusilc )
 
 dbd_eusilc <-
@@ -105,8 +125,8 @@ dbd_eusilc <-
 		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
-		dbname=dbfolder,
-		dbtype="MonetDBLite"
+		dbname=dbfile,
+		dbtype="SQLite"
 	)
 
 dbd_eusilc <- convey_prep( dbd_eusilc )

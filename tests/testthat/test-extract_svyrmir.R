@@ -1,5 +1,5 @@
 context("Svyrmir output survey.design and svyrep.design")
-library(vardpoor)
+library(laeken)
 library(survey)
 
 data(api)
@@ -58,10 +58,10 @@ test_that("output svyrmir",{
 
 
 	 # database-backed design
-	library(MonetDBLite)
+	library(RSQLite)
 	library(DBI)
-	dbfolder <- tempdir()
-	conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+	dbfile <- tempfile()
+	conn <- dbConnect( RSQLite::SQLite() , dbfile )
 	dbWriteTable( conn , 'eusilc' , eusilc )
 
 	dbd_eusilc <-
@@ -70,8 +70,8 @@ test_that("output svyrmir",{
 	strata = ~db040 ,
 	weights = ~rb050 ,
 	data="eusilc",
-	dbname=dbfolder,
-	dbtype="MonetDBLite"
+	dbname=dbfile,
+	dbtype="SQLite"
 	)
 	dbd_eusilc <- convey_prep( dbd_eusilc )
 
@@ -80,6 +80,7 @@ test_that("output svyrmir",{
 	c2 <- svyby(~ eqincome, by = ~hsize, design = subset(dbd_eusilc,hsize<8), FUN = svyrmir , age = ~age )
 
 	dbRemoveTable( conn , 'eusilc' )
+		dbDisconnect( conn )
 
 	test_that("database svyrmir",{
 	  expect_equal(coef(a1), coef(c1))
@@ -114,10 +115,10 @@ test_that("subsets equal svyby",{
 # second run of database-backed designs #
 
 	# database-backed design
-	library(MonetDBLite)
+	library(RSQLite)
 	library(DBI)
-	dbfolder <- tempdir()
-	conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+	dbfile <- tempfile()
+	conn <- dbConnect( RSQLite::SQLite() , dbfile )
 	dbWriteTable( conn , 'eusilc' , eusilc )
 
 	dbd_eusilc <-
@@ -126,8 +127,8 @@ test_that("subsets equal svyby",{
 			strata = ~db040 ,
 			weights = ~rb050 ,
 			data="eusilc",
-			dbname=dbfolder,
-			dbtype="MonetDBLite"
+			dbname=dbfile,
+			dbtype="SQLite"
 		)
 
 	dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -142,8 +143,8 @@ test_that("subsets equal svyby",{
 			rscales = des_eusilc_rep$rscales ,
 			type = "bootstrap" ,
 			data = "eusilc" ,
-			dbtype = "MonetDBLite" ,
-			dbname = dbfolder ,
+			dbtype="SQLite" ,
+			dbname = dbfile ,
 			combined.weights = FALSE
 		)
 
@@ -155,6 +156,7 @@ test_that("subsets equal svyby",{
 	sby_dbr <- svyby( ~eqincome, by = ~hsize, design = dbd_eusilc_rep, FUN = svyrmir , age = ~age )
 
 	dbRemoveTable( conn , 'eusilc' )
+		dbDisconnect( conn )
 
 
 	# compare database-backed designs to non-database-backed designs

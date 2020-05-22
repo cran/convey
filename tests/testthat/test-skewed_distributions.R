@@ -1,9 +1,13 @@
 library(survey)
 library(convey)
 
+
+test_that("functions work on weird distributions" ,{
+skip_on_cran()
+
 no.na <- function( z , value = FALSE ){ z[ is.na( z ) ] <- value ; z }
 
-all_funs <- list( svyrmir , svyqsr , svyarpt , svyarpt , svyatk , svyfgt , svygini , svygpg , svyiqalpha , svyisq , svyzenga , svypoormed  , svyrenyi , svygei  , svyrmpg  , svyzengacurve , svylorenz , svyjdiv , svyamato , svyafc , svybmi, svysst, svysen, svybcc )
+all_funs <- c( "svyrmir" , "svyqsr" , "svyarpt" , "svyarpt" , "svyatk" , "svyfgt" , "svygini" , "svygpg" , "svyiqalpha" , "svyisq" , "svyzenga" , "svypoormed" , "svyrenyi" , "svygei" , "svyrmpg" , "svyzengacurve" , "svylorenz" , "svyjdiv" , "svyamato" , "svyafc" , "svybmi" , "svysst" , "svysen" , "svybcc" , "svyrich" , "svychu" , "svywatts" )
 
 for( n in c( 50 , 1000 ) ){
 
@@ -28,8 +32,10 @@ for( n in c( 50 , 1000 ) ){
 	dist_frame[ -which( names( dist_frame ) == 'sex' ) ] <- sapply( dist_frame[ -which( names( dist_frame ) == 'sex' ) ] , as.numeric )
 
 
-	for( FUN in all_funs ){
+	for( this_function in all_funs ){
 
+		FUN <- get( this_function )
+	
 		unwtd_des <- convey_prep( svydesign( ~ 1 , data = dist_frame ) )
 		binom_des <- convey_prep( svydesign( ~ 1 , data = dist_frame , weight = ~ wt_binom ) )
 		unif_des <- convey_prep( svydesign( ~ 1 , data = dist_frame , weight = ~ wt_unif ) )
@@ -132,6 +138,27 @@ for( n in c( 50 , 1000 ) ){
 
 			  }
 
+			  if( identical( FUN , svyrich ) ){
+
+			    lin_params_list <- c( lin_params_list , list( type_measure = "FGTT1", g=1, type_thresh= "abs", abs_thresh=30000 ) )
+			    rep_params_list <- c( rep_params_list , list( type_measure = "FGTT1", g=1, type_thresh= "abs", abs_thresh=30000 ) )
+
+			  }
+
+			  if( identical( FUN , svychu ) ){
+
+			    lin_params_list <- c( lin_params_list , list( g=1, type_thresh= "abs", abs_thresh=10000 ) )
+			    rep_params_list <- c( rep_params_list , list( g=1, type_thresh= "abs", abs_thresh=10000 ) )
+
+			  }
+
+			  if( identical( FUN , svywatts ) ){
+
+			    lin_params_list <- c( lin_params_list , list( type_thresh= "abs", abs_thresh=10000 ) )
+			    rep_params_list <- c( rep_params_list , list( type_thresh= "abs", abs_thresh=10000 ) )
+
+			  }
+
 				if( this_prefix == 'unwtd' ) wt_vec <- seq( nrow( dist_frame ) )
 				if( this_prefix == 'binom' ) wt_vec <- which( dist_frame$wt_binom > 0 )
 				if( this_prefix == 'unif' ) wt_vec <- which( dist_frame$wt_unif > 0 )
@@ -152,12 +179,10 @@ for( n in c( 50 , 1000 ) ){
 
 				} else {
 
-					test_that(paste( "functions work on weird distributions" , this_prefix , as.character( this_formula )[2] ) ,{
-
 						lin_res <- do.call( FUN , lin_params_list )
 						rep_res <- do.call( FUN , rep_params_list )
 
-						print( paste( "testing functions work on weird distributions" , attr(lin_res , "statistic") , this_prefix , as.character( this_formula )[2] ) )
+						print( paste( "testing functions work on weird distributions" , this_function , this_prefix , as.character( this_formula )[2] ) )
 
 						# result should give some non-missing number
 						expect_that( coef( lin_res ) , is.numeric )
@@ -172,7 +197,7 @@ for( n in c( 50 , 1000 ) ){
 							expect_true( all( abs( SE( lin_res ) - SE( rep_res ) ) <= max( coef( lin_res ) ) * 0.3 ) )
 						}
 
-					})
+					
 
 				}
 
@@ -182,3 +207,5 @@ for( n in c( 50 , 1000 ) ){
 	}
 }
 
+
+})

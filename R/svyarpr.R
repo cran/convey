@@ -31,7 +31,7 @@
 #' @examples
 #'
 #' library(survey)
-#' library(vardpoor)
+#' library(laeken)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 #'
 #' # linearized design
@@ -45,7 +45,7 @@
 #' des_eusilc_rep <- convey_prep( des_eusilc_rep )
 #'
 #' svyarpr( ~eqincome , design = des_eusilc_rep )
-#' 
+#'
 #' \dontrun{
 #'
 #' # linearized design using a variable with missings
@@ -56,10 +56,10 @@
 #' svyarpr( ~ py010n , design = des_eusilc_rep , na.rm = TRUE )
 #'
 #' # database-backed design
-#' library(MonetDBLite)
+#' library(RSQLite)
 #' library(DBI)
-#' dbfolder <- tempdir()
-#' conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+#' dbfile <- tempfile()
+#' conn <- dbConnect( RSQLite::SQLite() , dbfile )
 #' dbWriteTable( conn , 'eusilc' , eusilc )
 #'
 #' dbd_eusilc <-
@@ -68,8 +68,8 @@
 #' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
-#' 		dbname=dbfolder,
-#' 		dbtype="MonetDBLite"
+#' 		dbname=dbfile,
+#' 		dbtype="SQLite"
 #' 	)
 #'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -113,7 +113,7 @@ svyarpr.survey.design <-
 		}
 
 		if( is.null( names( design$prob ) ) ) ind <- as.character( seq( length( design$prob ) ) ) else ind <- names(design$prob)
-		
+
 		w <- 1/design$prob
 		N <- sum(w)
 
@@ -128,12 +128,12 @@ svyarpr.survey.design <-
 			if (length(nas) > length(full_design$prob)) incvec <- incvec[!nas] else incvec[nas] <- 0
 		}
 
-		
+
 		if( is.null( names( full_design$prob ) ) ) ncom <- as.character( seq( length( full_design$prob ) ) ) else ncom <- names(full_design$prob)
-		
-		
+
+
 		wf <- 1/full_design$prob
-		htot <- h_fun(incvec, wf)
+		htot <- h_fun(incvar, w)
 
 		ARPT <- svyarpt(formula = formula, design=full_design, quantiles = quantiles, percent = percent, na.rm = na.rm,...)
 		arptv <- coef(ARPT)

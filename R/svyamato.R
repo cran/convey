@@ -21,7 +21,7 @@
 #' @seealso \code{\link{svygini}}
 #'
 #' @references Lucio Barabesi, Giancarlo Diana and Pier Francesco Perri (2016). Linearization of inequality indexes in the design-based framework.
-#' Statistics. URL \url{https://www.tandfonline.com/doi/pdf/10.1080/02331888.2015.1135924}.
+#' Statistics. URL \url{http://www.tandfonline.com/doi/pdf/10.1080/02331888.2015.1135924}.
 #'
 #' Barry C. Arnold (2012). On the Amato inequality index.
 #' Statistics & Probability Letters, v. 82, n. 8, August 2012, pp. 1504-1506, ISSN 0167-7152.
@@ -31,7 +31,7 @@
 #'
 #' @examples
 #' library(survey)
-#' library(vardpoor)
+#' library(laeken)
 #' data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 #'
 #' # linearized design
@@ -61,10 +61,10 @@
 #' svyamato(~py010n, des_eusilc_rep, na.rm = TRUE )
 #'
 #' # database-backed design
-#' library(MonetDBLite)
+#' library(RSQLite)
 #' library(DBI)
-#' dbfolder <- tempdir()
-#' conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+#' dbfile <- tempfile()
+#' conn <- dbConnect( RSQLite::SQLite() , dbfile )
 #' dbWriteTable( conn , 'eusilc' , eusilc )
 #'
 #' dbd_eusilc <-
@@ -73,8 +73,8 @@
 #' 		strata = ~db040 ,
 #' 		weights = ~rb050 ,
 #' 		data="eusilc",
-#' 		dbname=dbfolder,
-#' 		dbtype="MonetDBLite"
+#' 		dbname=dbfile,
+#' 		dbtype="SQLite"
 #' 	)
 #'
 #' dbd_eusilc <- convey_prep( dbd_eusilc )
@@ -112,8 +112,6 @@ svyamato <- function(formula, design, ...) {
 #' @rdname svyamato
 #' @export
 svyamato.survey.design <- function( formula, design, standardized = FALSE , na.rm = FALSE, ... ) {
-
-  if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your linearized survey design object immediately after creating it with the svydesign() function.")
 
   incvar <- model.frame(formula, design$variables, na.action = na.pass)[[1]]
 
@@ -183,8 +181,6 @@ svyamato.survey.design <- function( formula, design, standardized = FALSE , na.r
 svyamato.svyrep.design <- function(formula, design, standardized = FALSE, na.rm=FALSE, ...) {
   incvar <- model.frame(formula, design$variables, na.action = na.pass)[[1]]
 
-  if (is.null(attr(design, "full_design"))) stop("you must run the ?convey_prep function on your replicate-weighted survey design object immediately after creating it with the svrepdesign() function.")
-
 
   if(na.rm){
     nas<-is.na(incvar)
@@ -249,19 +245,6 @@ svyamato.svyrep.design <- function(formula, design, standardized = FALSE, na.rm=
 #' @export
 svyamato.DBIsvydesign <-
   function (formula, design, ...) {
-
-    if (!( "logical" %in% class(attr(design, "full_design"))) ){
-
-      full_design <- attr( design , "full_design" )
-
-      full_design$variables <- getvars(formula, attr( design , "full_design" )$db$connection, attr( design , "full_design" )$db$tablename,
-                                       updates = attr( design , "full_design" )$updates, subset = attr( design , "full_design" )$subset)
-
-      attr( design , "full_design" ) <- full_design
-
-      rm( full_design )
-
-    }
 
     design$variables <- getvars(formula, design$db$connection, design$db$tablename,
                                 updates = design$updates, subset = design$subset)

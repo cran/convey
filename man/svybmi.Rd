@@ -9,11 +9,25 @@
 \usage{
 svybmi(formula, design, ...)
 
-\method{svybmi}{survey.design}(formula, design, alpha = 0.5, beta = -2,
-  dimw = NULL, na.rm = FALSE, ...)
+\method{svybmi}{survey.design}(
+  formula,
+  design,
+  alpha = 0.5,
+  beta = -2,
+  dimw = NULL,
+  na.rm = FALSE,
+  ...
+)
 
-\method{svybmi}{svyrep.design}(formula, design, alpha = 0.5, beta = -2,
-  dimw = NULL, na.rm = FALSE, ...)
+\method{svybmi}{svyrep.design}(
+  formula,
+  design,
+  alpha = 0.5,
+  beta = -2,
+  dimw = NULL,
+  na.rm = FALSE,
+  ...
+)
 
 \method{svybmi}{DBIsvydesign}(formula, design, ...)
 }
@@ -46,7 +60,7 @@ This function is experimental and is subject to change in later versions.
 }
 \examples{
 library(survey)
-library(vardpoor)
+library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
@@ -75,10 +89,10 @@ svybmi(~eqincome+hy050n, design = des_eusilc_rep, alpha = .5, beta = -2, na.rm =
 \dontrun{
 
 # database-backed design
-library(MonetDBLite)
+library(RSQLite)
 library(DBI)
-dbfolder <- tempdir()
-conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+dbfile <- tempfile()
+conn <- dbConnect( RSQLite::SQLite() , dbfile )
 dbWriteTable( conn , 'eusilc' , eusilc )
 
 dbd_eusilc <-
@@ -87,8 +101,8 @@ dbd_eusilc <-
 		strata = ~db040 ,
 		weights = ~rb050 ,
 		data="eusilc",
-		dbname=dbfolder,
-		dbtype="MonetDBLite"
+		dbname=dbfile,
+		dbtype="SQLite"
 	)
 
 dbd_eusilc <- convey_prep( dbd_eusilc )

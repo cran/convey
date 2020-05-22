@@ -9,13 +9,27 @@
 \usage{
 svyrmpg(formula, design, ...)
 
-\method{svyrmpg}{survey.design}(formula, design, quantiles = 0.5,
-  percent = 0.6, na.rm = FALSE, thresh = FALSE, poor_median = FALSE,
-  ...)
+\method{svyrmpg}{survey.design}(
+  formula,
+  design,
+  quantiles = 0.5,
+  percent = 0.6,
+  na.rm = FALSE,
+  thresh = FALSE,
+  poor_median = FALSE,
+  ...
+)
 
-\method{svyrmpg}{svyrep.design}(formula, design, quantiles = 0.5,
-  percent = 0.6, na.rm = FALSE, thresh = FALSE, poor_median = FALSE,
-  ...)
+\method{svyrmpg}{svyrep.design}(
+  formula,
+  design,
+  quantiles = 0.5,
+  percent = 0.6,
+  na.rm = FALSE,
+  thresh = FALSE,
+  poor_median = FALSE,
+  ...
+)
 
 \method{svyrmpg}{DBIsvydesign}(formula, design, ...)
 }
@@ -48,7 +62,7 @@ you must run the \code{convey_prep} function on your survey design object immedi
 \examples{
 
 library(survey)
-library(vardpoor)
+library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
@@ -73,10 +87,10 @@ svyrmpg( ~ py010n , design = des_eusilc_rep )
 svyrmpg( ~ py010n , design = des_eusilc_rep , na.rm = TRUE )
 
 # database-backed design
-library(MonetDBLite)
+library(RSQLite)
 library(DBI)
-dbfolder <- tempdir()
-conn <- dbConnect( MonetDBLite::MonetDBLite() , dbfolder )
+dbfile <- tempfile()
+conn <- dbConnect( RSQLite::SQLite() , dbfile )
 dbWriteTable( conn , 'eusilc' , eusilc )
 
 dbd_eusilc <-
@@ -85,8 +99,8 @@ dbd_eusilc <-
 		strata = ~db040 , 
 		weights = ~rb050 ,
 		data="eusilc",
-		dbname=dbfolder,
-		dbtype="MonetDBLite"
+		dbname=dbfile,
+		dbtype="SQLite"
 	)
 
 dbd_eusilc <- convey_prep( dbd_eusilc )
