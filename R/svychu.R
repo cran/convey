@@ -26,20 +26,20 @@
 #'
 #' @references Vijay Verma and Gianni Betti (2011). Taylor linearization sampling errors and design effects for poverty measures
 #' and other complex statistics. \emph{Journal Of Applied Statistics}, Vol.38, No.8, pp. 1549-1576,
-#' URL \url{http://dx.doi.org/10.1080/02664763.2010.515674}.
+#' <doi:10.1080/02664763.2010.515674>
 #'
 #' Anthony B. Atkinson (1987). On the measurement of poverty.
 #' \emph{Econometrica}, Vol.55, No.4, (Jul., 1987), pp. 749-764,
-#' URL \url{http://www.jstor.org/stable/1911028}.
+#' URL \url{https://www.jstor.org/stable/1911028}.
 #'
 #' Stephen Clark, Richard Hemming and David Ulph (1981). On Indices
 #' for the Measurement of Poverty. \emph{The Economic Journal}, Vol.91, No.362, (Jun., 1981), pp. 515-526,
-#' URL \url{http://www.jstor.org/stable/2232600}.
+#' URL \url{https://www.jstor.org/stable/2232600}.
 #'
 #' Guillaume Osier (2009). Variance estimation for complex indicators
 #' of poverty and inequality. \emph{Journal of the European Survey Research
 #' Association}, Vol.3, No.3, pp. 167-195,
-#' ISSN 1864-3361, URL \url{http://ojs.ub.uni-konstanz.de/srm/article/view/369}.
+#' ISSN 1864-3361, URL \url{https://ojs.ub.uni-konstanz.de/srm/article/view/369}.
 #'
 #' @keywords survey
 #'

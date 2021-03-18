@@ -29,7 +29,7 @@
 #' @references Oihana Aristondo, Cassilda Lasso De La vega and Ana Urrutia (2010).
 #' A new multiplicative decomposition for the Foster-Greer-Thorbecke poverty indices.
 #' \emph{Bulletin of Economic Research}, Vol.62, No.3, pp. 259-267.
-#' University of Wisconsin. URL \url{http://dx.doi.org/10.1111/j.1467-8586.2009.00320.x}.
+#' University of Wisconsin. <doi:10.1111/j.1467-8586.2009.00320.x>
 #'
 #' James Foster, Joel Greer and Erik Thorbecke (1984). A class of decomposable poverty measures.
 #' \emph{Econometrica}, Vol.52, No.3, pp. 761-766.
@@ -37,11 +37,11 @@
 #' Guillaume Osier (2009). Variance estimation for complex indicators
 #' of poverty and inequality. \emph{Journal of the European Survey Research
 #' Association}, Vol.3, No.3, pp. 167-195,
-#' ISSN 1864-3361, URL \url{http://ojs.ub.uni-konstanz.de/srm/article/view/369}.
+#' ISSN 1864-3361, URL \url{https://ojs.ub.uni-konstanz.de/srm/article/view/369}.
 #'
 #' Jean-Claude Deville (1999). Variance estimation for complex statistics and estimators:
 #' linearization and residual techniques. Survey Methodology, 25, 193-203,
-#' URL \url{http://www5.statcan.gc.ca/bsolc/olc-cel/olc-cel?lang=eng&catno=12-001-X19990024882}.
+#' URL \url{https://www150.statcan.gc.ca/n1/en/catalogue/12-001-X19990024882}.
 #'
 #' @keywords survey
 #'
