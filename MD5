@@ -1,8 +1,8 @@
-fb78bb57e173e8088320753e78a374fc *DESCRIPTION
+57943e2eb3bca062b811bb1e10a8d917 *DESCRIPTION
 498a489126abb5d4dc3a3cd9715a216f *NAMESPACE
 77f47b6a9f624e3103ce0cb9b32f19de *R/all_funs.R
 840e3d14c53056157fc66bc1ce0cec7e *R/contrastinf.R
-b249ca9044b991a8855930109c3476af *R/survey_functions.R
+1a5b80402e5c16f952301bf145532d29 *R/survey_functions.R
 5b7bd250fca45654281e1a3c891499ee *R/svyarpr.R
 426c7719a765bef45d0857c660be4c92 *R/svyarpt.R
 c564fa6a5be4c089122a871b27de2e50 *R/svyatk.R
@@ -10,13 +10,13 @@ abab4f0b784cb90dfe7c280ae5c020bc *R/svychu.R
 8c1c8dde2782d58bfefeabec2f2a3cce *R/svyfgt.R
 791b41d6bf7eac4b5bc6f4e3872367df *R/svyfgtdec.R
 6d35e0e2245f41a7e13e2f8846ae7000 *R/svygei.R
-357cca2a445486d55765e9915518ff43 *R/svygeidec.R
+a4f7c9f05019db3e4ed3800ebb60f8b4 *R/svygeidec.R
 0aabfb9f68fb1abf98e3094c16ee1814 *R/svygini.R
 21c2cc4b154783c2a15d91fc4e2a094b *R/svygpg.R
 a39541c073dd7224c6d3c733a27b06ef *R/svyiqalpha.R
 88b833eb0ebdc0d081f4b6aa6757a368 *R/svyisq.R
 99ca0043f2c2512460d62fa5bfdcbb36 *R/svyjdiv.R
-7998be9dfdb06230c01b76fb22060440 *R/svyjdivdec.R
+56fe013a4383144bc76dba2a3013b34b *R/svyjdivdec.R
 11cbd2f0616dfbf7b84530fa96a930d0 *R/svylorenz.R
 b08f0930ad96e0d66c3f0e57cb881953 *R/svypoormed.R
 97245a02873feb4328f8e035feff34c6 *R/svyqsr.R
@@ -54,7 +54,7 @@ b1d428a487166ee9c466132bd49fe78e *man/svyrich.Rd
 9f72403702bd01289ea4eacee670263a *man/svyrmpg.Rd
 2e7f02290181ce42bcec18b9c342af59 *man/svywatts.Rd
 c78717a858ab7f520263b99aa7be1de9 *man/svywattsdec.Rd
-8c0ddd8910581095574e79ae481b3992 *tests/testthat.R
+5159fec8427a157cdd48033e39d9b638 *tests/testthat.R
 f2d5c65ddb821a31e8f62a56a884da4a *tests/testthat/Rplots.pdf
 c3c75b55a2b54d23dfa3f7d755928867 *tests/testthat/test-densfun.R
 25ffae00fbe2dadd175dd869ac495e3f *tests/testthat/test-extract_svyarpr.R
@@ -84,7 +84,7 @@ ce6bdd8e23e787fb9071433c7ba44ecc *tests/testthat/test-extract_svywattsdec.R
 91f56dd1bb7f6445a5fd9ed32f12bcf9 *tests/testthat/test-skewed_distributions.R
 b1d69f8aa8d775378771c9a126e77e06 *tests/testthat/test-svyarpr.R
 2dd749515eb088e63898e377b2f23ee0 *tests/testthat/test-svyarpt.R
-96b8ecc6730b6bf6752cc0f2f256bf78 *tests/testthat/test-svyatk.R
+80285da6611faf8f6936d19402c25d25 *tests/testthat/test-svyatk.R
 3d84d6d50f725523edf5b8ba0ce136ee *tests/testthat/test-svygini.R
 e2ebe313e77fcc215c37b9b3abbcaa89 *tests/testthat/test-svypoormed.R
 e3c7c541ffafc6411e02a9d87cc0717e *tests/testthat/test-svyqsr.R
