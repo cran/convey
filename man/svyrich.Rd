@@ -5,7 +5,7 @@
 \alias{svyrich.survey.design}
 \alias{svyrich.svyrep.design}
 \alias{svyrich.DBIsvydesign}
-\title{Richness measures (EXPERIMENTAL)}
+\title{Richness measures}
 \usage{
 svyrich(formula, design, ...)
 
@@ -16,10 +16,12 @@ svyrich(formula, design, ...)
   g,
   type_thresh = "abs",
   abs_thresh = NULL,
-  times = 1,
+  percent = 1.5,
   quantiles = 0.5,
-  na.rm = FALSE,
   thresh = FALSE,
+  na.rm = FALSE,
+  deff = FALSE,
+  linearized = FALSE,
   ...
 )
 
@@ -30,10 +32,13 @@ svyrich(formula, design, ...)
   g,
   type_thresh = "abs",
   abs_thresh = NULL,
-  times = 1,
+  percent = 1.5,
   quantiles = 0.5,
-  na.rm = FALSE,
   thresh = FALSE,
+  na.rm = FALSE,
+  deff = FALSE,
+  linearized = FALSE,
+  return.replicates = FALSE,
   ...
 )
 
@@ -50,18 +55,23 @@ svyrich(formula, design, ...)
 
 \item{g}{Richness preference parameter.}
 
-\item{type_thresh}{type of richness threshold. If "abs" the threshold is fixed and given the value
-of abs_thresh; if "relq" it is given by \code{times} times the quantile; if "relm" it is \code{times} times the mean.}
+\item{type_thresh}{type of richness threshold. If "abs" the threshold is fixed and given the value of abs_thresh; if "relq" it is given by \code{percent} times the quantile; if "relm" it is \code{percent} times the mean.}
 
 \item{abs_thresh}{richness threshold value if type_thresh is "abs"}
 
-\item{times}{the multiple of the quantile or mean used in the richness threshold definition}
+\item{percent}{the multiple of the quantile or mean used in the richness threshold definition. Defaults to \code{percent = 1.5}; i.e., 1.5 times the quantile or mean.}
 
-\item{quantiles}{the quantile used used in the richness threshold definition}
+\item{quantiles}{the quantile used used in the richness threshold definition. Defaults to \code{quantiles = .5}, the median.}
+
+\item{thresh}{return the richness threshold value}
 
 \item{na.rm}{Should cases with missing values be dropped?}
 
-\item{thresh}{return the richness threshold value}
+\item{deff}{Return the design effect (see \code{survey::svymean})}
+
+\item{linearized}{Should a matrix of linearized variables be returned}
+
+\item{return.replicates}{Return the replicate estimates?}
 }
 \value{
 Object of class "\code{cvystat}", which are vectors with a "\code{var}" attribute giving the variance and a "\code{statistic}" attribute giving the name of the statistic.
@@ -71,9 +81,6 @@ Estimate Peichl, Schaefer and Scheicher (2010) richness measures.
 }
 \details{
 you must run the \code{convey_prep} function on your survey design object immediately after creating it with the \code{svydesign} or \code{svrepdesign} function.
-}
-\note{
-This function is experimental and is subject to change in later versions.
 }
 \examples{
 library(survey)
@@ -89,33 +96,33 @@ des_eusilc <- convey_prep( des_eusilc )
 des_eusilc_rep <- as.svrepdesign( des_eusilc , type = "bootstrap" )
 des_eusilc_rep <- convey_prep( des_eusilc_rep )
 
-# concave FGT-like richness measure
-# headcount ratio, richness threshold fixed
-svyrich(~eqincome, des_eusilc, type_measure = "FGTT1" , g=0,  abs_thresh=30000)
-# richness gap index, richness threshold fixed
-svyrich(~eqincome, des_eusilc, type_measure = "FGTT1" , g=1,  abs_thresh=30000)
-# headcount ratio, richness threshold equal to the median
-svyrich(~eqincome, des_eusilc, type_measure = "FGTT1" , g=0, type_thresh= "relq" )
-# richness gap index, richness threshold equal to the median
-svyrich(~eqincome, des_eusilc, type_measure = "FGTT1" , g=1, type_thresh= "relq" )
-# headcount ratio, richness threshold equal to the mean
-svyrich(~eqincome, des_eusilc, type_measure = "FGTT1" , g=0, type_thresh= "relm" )
-# richness gap index, richness threshold equal to the mean
-svyrich(~eqincome, des_eusilc, type_measure = "FGTT1" , g=1, type_thresh= "relm" )
+# concave Chakravarty richness measure
+# higher g= parameters tend toward headcount ratio, richness threshold fixed
+svyrich(~eqincome, des_eusilc, type_measure = "Cha" , g=3,  abs_thresh=30000)
+# g=1 parameter computes the richness gap index, richness threshold fixed
+svyrich(~eqincome, des_eusilc, type_measure = "Cha" , g=1,  abs_thresh=30000)
+# higher g= parameters tend toward headcount ratio, richness threshold equal to the median
+svyrich(~eqincome, des_eusilc, type_measure = "Cha" , g=3, type_thresh= "relq" )
+# g=1 parameter computes the richness gap index, richness threshold equal to the median
+svyrich(~eqincome, des_eusilc, type_measure = "Cha" , g=1, type_thresh= "relq" )
+# higher g= parameters tend toward headcount ratio, richness threshold equal to the mean
+svyrich(~eqincome, des_eusilc, type_measure = "Cha" , g=3, type_thresh= "relm" )
+# g=1 parameter computes the richness gap index, richness threshold equal to the mean
+svyrich(~eqincome, des_eusilc, type_measure = "Cha" , g=1, type_thresh= "relm" )
 
 #  using svrep.design:
-# headcount ratio, richness threshold fixed
-svyrich(~eqincome, des_eusilc_rep, type_measure = "FGTT1" , g=0, abs_thresh=30000 )
-# richness gap index, richness threshold fixed
-svyrich(~eqincome, des_eusilc_rep, type_measure = "FGTT1" , g=1, abs_thresh=30000 )
-# headcount ratio, richness threshold equal to the median
-svyrich(~eqincome, des_eusilc_rep, type_measure = "FGTT1" , g=0, type_thresh= "relq" )
-# richness gap index, richness threshold equal to the median
-svyrich(~eqincome, des_eusilc_rep, type_measure = "FGTT1" , g=1, type_thresh= "relq" )
-# headcount ratio, richness threshold equal to the mean
-svyrich(~eqincome, des_eusilc_rep, type_measure = "FGTT1" , g=0, type_thresh= "relm" )
-# richness gap index, richness threshold equal to the mean
-svyrich(~eqincome, des_eusilc_rep, type_measure = "FGTT1" , g=1, type_thresh= "relm" )
+# higher g= parameters tend toward headcount ratio, richness threshold fixed
+svyrich(~eqincome, des_eusilc_rep, type_measure = "Cha" , g=3, abs_thresh=30000 )
+# g=1 parameter computes the richness gap index, richness threshold fixed
+svyrich(~eqincome, des_eusilc_rep, type_measure = "Cha" , g=1, abs_thresh=30000 )
+# higher g= parameters tend toward headcount ratio, richness threshold equal to the median
+svyrich(~eqincome, des_eusilc_rep, type_measure = "Cha" , g=3, type_thresh= "relq" )
+# g=1 parameter computes the richness gap index, richness threshold equal to the median
+svyrich(~eqincome, des_eusilc_rep, type_measure = "Cha" , g=1, type_thresh= "relq" )
+# higher g= parameters tend toward headcount ratio, richness threshold equal to the mean
+svyrich(~eqincome, des_eusilc_rep, type_measure = "Cha" , g=3, type_thresh= "relm" )
+# g=1 parameter computes the richness gap index, richness threshold equal to the mean
+svyrich(~eqincome, des_eusilc_rep, type_measure = "Cha" , g=1, type_thresh= "relm" )
 
 \dontrun{
 
@@ -139,18 +146,18 @@ dbd_eusilc <-
 
 dbd_eusilc <- convey_prep( dbd_eusilc )
 
-# headcount ratio, richness threshold fixed
-svyrich(~eqincome, dbd_eusilc, type_measure = "FGTT1" , g=0, abs_thresh=30000 )
-# richness gap index, richness threshold fixed
-svyrich(~eqincome, dbd_eusilc, type_measure = "FGTT1" , g=1, abs_thresh=30000 )
-# headcount ratio, richness threshold equal to the median
-svyrich(~eqincome, dbd_eusilc, type_measure = "FGTT1" , g=0, type_thresh= "relq" )
-# richness gap index, richness threshold equal to the median
-svyrich(~eqincome, dbd_eusilc, type_measure = "FGTT1" , g=1, type_thresh= "relq" )
-# headcount ratio, richness threshold equal to the mean
-svyrich(~eqincome, dbd_eusilc, type_measure = "FGTT1" , g=0, type_thresh= "relm" )
-# richness gap index, richness threshold equal to the mean
-svyrich(~eqincome, dbd_eusilc, type_measure = "FGTT1" , g=1, type_thresh= "relm" )
+# higher g= parameters tend toward headcount ratio, richness threshold fixed
+svyrich(~eqincome, dbd_eusilc, type_measure = "Cha" , g=3, abs_thresh=30000 )
+# g=1 parameter computes the richness gap index, richness threshold fixed
+svyrich(~eqincome, dbd_eusilc, type_measure = "Cha" , g=1, abs_thresh=30000 )
+# higher g= parameters tend toward headcount ratio, richness threshold equal to the median
+svyrich(~eqincome, dbd_eusilc, type_measure = "Cha" , g=3, type_thresh= "relq" )
+# g=1 parameter computes the richness gap index, richness threshold equal to the median
+svyrich(~eqincome, dbd_eusilc, type_measure = "Cha" , g=1, type_thresh= "relq" )
+# higher g= parameters tend toward headcount ratio, richness threshold equal to the mean
+svyrich(~eqincome, dbd_eusilc, type_measure = "Cha" , g=3, type_thresh= "relm" )
+# g=1 parameter computes the richness gap index, richness threshold equal to the mean
+svyrich(~eqincome, dbd_eusilc, type_measure = "Cha" , g=1, type_thresh= "relm" )
 
 dbRemoveTable( conn , 'eusilc' )
 
@@ -161,14 +168,13 @@ dbDisconnect( conn , shutdown = TRUE )
 }
 \references{
 Michal Brzezinski (2014). Statistical Inference for Richness Measures. \emph{Applied Economics},
-Vol. 46, No. 14, pp. 1599-1608, <doi:10.1080/00036846.2014.880106>
+Vol. 46, No. 14, pp. 1599-1608, DOI \doi{10.1080/00036846.2014.880106}.
 
 Andreas Peichl, Thilo Schaefer, and Christoph Scheicher (2010). Measuring richness and poverty: A micro data
 application to Europe and Germany. \emph{Review of Income and Wealth}, Vol. 56, No.3, pp. 597-619.
 
-Guillaume Osier (2009). Variance estimation for complex indicators
-of poverty and inequality. \emph{Journal of the European Survey Research
-Association}, Vol.3, No.3, pp. 167-195,
+Guillaume Osier (2009). Variance estimation for complex indicators of poverty and inequality.
+\emph{Journal of the European Survey Research Association}, Vol.3, No.3, pp. 167-195,
 ISSN 1864-3361, URL \url{https://ojs.ub.uni-konstanz.de/srm/article/view/369}.
 }
 \seealso{

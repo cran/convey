@@ -5,7 +5,7 @@
 \alias{svywattsdec.survey.design}
 \alias{svywattsdec.svyrep.design}
 \alias{svywattsdec.DBIsvydesign}
-\title{Watts poverty index decomposition (EXPERIMENTAL)}
+\title{Watts poverty index decomposition}
 \usage{
 svywattsdec(formula, design, ...)
 
@@ -30,6 +30,7 @@ svywattsdec(formula, design, ...)
   quantiles = 0.5,
   na.rm = FALSE,
   thresh = FALSE,
+  return.replicates = FALSE,
   ...
 )
 
@@ -54,6 +55,8 @@ of abs_thresh; if "relq" it is given by percent times the quantile; if "relm" it
 \item{na.rm}{Should cases with missing values be dropped?}
 
 \item{thresh}{return the poverty threshold value}
+
+\item{return.replicates}{Return the replicate estimates?}
 }
 \value{
 Object of class "\code{cvydstat}", with estimates for the Watts index, FGT(0), Watts Poverty Gap Ratio, and Theil(poor incomes) with a "\code{var}" attribute giving the variance-covariance matrix.
@@ -64,9 +67,8 @@ Estimate the Watts (1968) poverty measure and its components
 }
 \details{
 you must run the \code{convey_prep} function on your survey design object immediately after creating it with the \code{svydesign} or \code{svrepdesign} function.
-}
-\note{
-This function is experimental and is subject to change in later versions.
+
+For the \code{svywatts} and \code{svywattsdec} functions, zeroes and negative numbers in the analysis domain cause an error because of the logarithm function in the definition of this poverty measure.  However, zeroes and negative values in the full survey design that are outside of the domain of analysis are valid to calculate the poverty threshold because zeroes and negatives are not a problem for computing quantiles (used when \code{type_thresh = "relq"}) or means (used when \code{type_thresh = "relm"}) . Missing values are treated differently.  \code{NA} values anywhere in the full survey design (not only the subset, or the domain of analysis) will cause these quantiles and means to return \code{NA} results.  To ignore \code{NA} values throughout, set \code{na.rm = TRUE}.
 }
 \examples{
 library(survey)
@@ -74,13 +76,16 @@ library(laeken)
 data(eusilc) ; names( eusilc ) <- tolower( names( eusilc ) )
 
 # linearized design
-
 des_eusilc <- svydesign( ids = ~rb030 , strata = ~db040 ,  weights = ~rb050 , data = eusilc )
 des_eusilc <- convey_prep( des_eusilc )
 
 # replicate-weighted design
 des_eusilc_rep <- as.svrepdesign( des_eusilc , type = "bootstrap" )
 des_eusilc_rep <- convey_prep( des_eusilc_rep )
+
+# filter positive incomes
+des_eusilc <- subset( des_eusilc , eqincome > 0 )
+des_eusilc_rep <- subset( des_eusilc_rep , eqincome > 0 )
 
 # absolute poverty threshold
 svywattsdec(~eqincome, des_eusilc, abs_thresh=10000)
@@ -116,8 +121,8 @@ dbd_eusilc <-
 		dbtype="SQLite"
 	)
 
-
 dbd_eusilc <- convey_prep( dbd_eusilc )
+dbd_eusilc <- subset( dbd_eusilc , eqincome > 0 )
 
 # absolute poverty threshold
 svywattsdec(~eqincome, dbd_eusilc, abs_thresh=10000)
@@ -136,7 +141,7 @@ dbDisconnect( conn , shutdown = TRUE )
 \references{
 McKinley L. Blackburn (1989). Poverty measurement: an index related to a Theil measure of inequality.
 \emph{Journal of Business & Economic Statistics}, Vol.7, No.4, pp. 475-481,
-URL \url{https://amstat.tandfonline.com/doi/abs/10.1080/07350015.1989.10509760}.
+DOI \doi{10.1080/07350015.1989.10509760}.
 
 Satya R. Chakravarty, Joseph Deutsch and Jacques Silber (2008).
 On the Watts multidimensional poverty index and its decomposition.
@@ -159,6 +164,6 @@ URL \url{https://www150.statcan.gc.ca/n1/en/catalogue/12-001-X19990024882}.
 \code{\link{svywatts},\link{svyfgt},\link{svyfgt}}
 }
 \author{
-Guilherme Jacob, Djalma Pessoa and Anthony Damico
+Guilherme Jacob, Djalma Pessoa, and Anthony Damico
 }
 \keyword{survey}

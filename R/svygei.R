@@ -6,6 +6,10 @@
 #' @param design a design object of class \code{survey.design} or class \code{svyrep.design} from the \code{survey} library.
 #' @param epsilon a parameter that determines the sensivity towards inequality in the top of the distribution. Defaults to epsilon = 1.
 #' @param na.rm Should cases with missing values be dropped?
+#' @param deff Return the design effect (see \code{survey::svymean})
+#' @param linearized Should a matrix of linearized variables be returned
+#' @param influence Should a matrix of (weighted) influence functions be returned? (for compatibility with \code{\link[survey]{svyby}})
+#' @param return.replicates Return the replicate estimates?
 #' @param ... future expansion
 #'
 #' @details you must run the \code{convey_prep} function on your survey design object immediately after creating it with the \code{svydesign} or \code{svrepdesign} function.
@@ -118,188 +122,325 @@
 #'
 #' @export
 svygei <-
-	function(formula, design, ...) {
+  function(formula, design, ...) {
+    if (length(attr(terms.formula(formula) , "term.labels")) > 1)
+      stop(
+        "convey package functions currently only support one variable in the `formula=` argument"
+      )
 
-		if( length( attr( terms.formula( formula ) , "term.labels" ) ) > 1 ) stop( "convey package functions currently only support one variable in the `formula=` argument" )
+    #if( 'epsilon' %in% names( list(...) ) && list(...)[["epsilon"]] < 0 ) stop( "epsilon= cannot be negative." )
 
-		#if( 'epsilon' %in% names( list(...) ) && list(...)[["epsilon"]] < 0 ) stop( "epsilon= cannot be negative." )
+    UseMethod("svygei", design)
 
-		UseMethod("svygei", design)
-
-	}
+  }
 
 
 #' @rdname svygei
 #' @export
 svygei.survey.design <-
-	function ( formula, design, epsilon = 1, na.rm = FALSE, ... ) {
+  function (formula,
+            design,
+            epsilon = 1,
+            na.rm = FALSE,
+            deff = FALSE ,
+            linearized = FALSE ,
+            influence = FALSE ,
+            ...) {
+    # collect income data
+    incvar <-
+      model.frame(formula, design$variables, na.action = na.pass)[[1]]
 
-		incvar <- model.frame(formula, design$variables, na.action = na.pass)[[1]]
+    # treat missing values
+    if (na.rm) {
+      nas <- is.na(incvar)
+      design$prob <- ifelse(nas , Inf , design$prob)
+    }
 
-		if (na.rm) {
-			nas <- is.na(incvar)
-			design <- design[nas == 0, ]
-			if (length(nas) > length(design$prob) ) incvar <- incvar[nas == 0] else incvar[nas > 0] <- 0
-		}
+    # collect weights
+    w <- 1 / design$prob
 
-		w <- 1/design$prob
-		if ( any( incvar[ w > 0 ] <= 0, na.rm = TRUE) ) stop( paste("the GEI is undefined for incomes <= 0 if epsilon ==", epsilon) )
+    # check for strictly positive incomes
+    if (any(incvar[w != 0] <= 0 , na.rm = TRUE))
+      stop(
+        "The GEI indices are defined for strictly positive variables only.\nNegative and zero values not allowed."
+      )
 
-		rval <- calc.gei( x = incvar, weights = w, epsilon = epsilon )
+    # compute value
+    estimate <- CalcGEI(incvar, w, epsilon)
 
-		if ( epsilon == 0 ){
-			v <-
-				-U_fn( incvar , w , 0 )^( -1 ) *
-				log( incvar ) +
-				U_fn( incvar , w ,  1 )^( -1 ) *
-				incvar +
-				U_fn( incvar , w , 0 )^( -1 ) *
-				(
-					T_fn( incvar , w , 0 ) *
-					U_fn( incvar , w , 0 )^( -1 ) - 1
-				)
+    # compute linearized functions
+    lin <- CalcGEI_IF(incvar, w, epsilon)
 
-		} else if ( epsilon == 1) {
+    # compute variance
+    variance <-
+      survey::svyrecvar(
+        lin / design$prob,
+        design$cluster,
+        design$strata,
+        design$fpc,
+        postStrata = design$postStrata
+      )
+    variance[which(is.nan(variance))] <- NA
+    colnames(variance) <-
+      rownames(variance) <-
+      strsplit(as.character(formula)[[2]] , ' \\+ ')[[1]]
 
-			v <-
-				U_fn( incvar , w , 1 )^( -1 ) * incvar * log( incvar ) -
-				U_fn( incvar , w , 1 )^( -1 ) * ( T_fn( incvar , w , 1 ) * U_fn( incvar , w, 1 )^( -1 ) + 1 ) * incvar +
-				U_fn( incvar , w , 0 )^( -1 )
+    # compute deff
+    if (is.character(deff) || deff) {
+      nobs <- sum(weights(design) != 0)
+      npop <- sum(weights(design))
+      if (deff == "replace")
+        vsrs <- survey::svyvar(lin , design, na.rm = na.rm) * npop ^ 2 / nobs
+      else
+        vsrs <-
+        survey::svyvar(lin , design , na.rm = na.rm) * npop ^ 2 * (npop - nobs) /
+        (npop * nobs)
+      deff.estimate <- variance / vsrs
+    }
 
-		} else {
+    # # keep necessary linearized functions
+    # lin <- lin[ 1/design$prob > 0 ]
 
-			v <-
-				( epsilon )^( -1 ) *
-				U_fn( incvar , w , epsilon ) *
-				U_fn( incvar , w , 1 )^( -epsilon ) *
-				U_fn( incvar , w , 0 )^( epsilon - 2 ) -
+    # coerce to matrix
+    lin <-
+      matrix(lin ,
+             nrow = length(lin) ,
+             dimnames = list( rownames( design$variables ) , strsplit(as.character(formula)[[2]] , ' \\+ ')[[1]]))
 
-				( epsilon - 1 )^( -1 ) *
-				U_fn( incvar , w , epsilon ) *
-				U_fn( incvar , w , 1 )^( -epsilon -1 ) *
-				U_fn( incvar , w , 0 )^( epsilon - 1 ) * incvar +
+    # build result object
+    rval <- estimate
+    names(rval) <-
+      strsplit(as.character(formula)[[2]] , ' \\+ ')[[1]]
+    class(rval) <- c("cvystat" , "svystat")
+    attr(rval, "var") <- variance
+    attr(rval, "statistic") <- "gei"
+    attr(rval, "epsilon") <- epsilon
+    if (linearized)
+      attr(rval, "linearized") <- lin
+    if (influence)
+      attr(rval , "influence")  <- sweep(lin , 1 , design$prob , "/")
+    if (linearized |
+        influence)
+      attr(rval , "index") <- as.numeric(rownames(lin))
+    if (is.character(deff) ||
+        deff)
+      attr(rval , "deff") <- deff.estimate
+    rval
 
-				( epsilon^2 - epsilon )^( -1 ) *
-				U_fn( incvar , w , 0 )^( epsilon - 1 ) *
-				U_fn( incvar , w , 1 )^( -epsilon ) *
-				incvar^(epsilon)
-
-		}
-
-		v[ w == 0 ] <- 0
-		# stopifnot( length( v ) == length( design$prob) )
-
-		variance <- survey::svyrecvar(v/design$prob, design$cluster,design$strata, design$fpc, postStrata = design$postStrata)
-
-		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- c( "cvystat" , "svystat" )
-		attr(rval, "var") <- variance
-		attr(rval, "statistic") <- "gei"
-		attr(rval,"lin")<- v
-		attr(rval,"epsilon")<- epsilon
-		rval
-
-	}
+  }
 
 
 #' @rdname svygei
 #' @export
 svygei.svyrep.design <-
-	function(formula, design, epsilon = 1,na.rm=FALSE, ...) {
+  function(formula ,
+           design ,
+           epsilon = 1 ,
+           na.rm = FALSE ,
+           deff = FALSE ,
+           linearized = FALSE ,
+           return.replicates = FALSE ,
+           ...) {
+    # collect income variable
+    incvar <-
+      model.frame(formula, design$variables, na.action = na.pass)[[1]]
 
-		incvar <- model.frame(formula, design$variables, na.action = na.pass)[[1]]
+    # treat missings
+    if (na.rm) {
+      nas <- is.na(incvar)
+      design <- design[!nas, ]
+      incvar <- incvar[!nas]
+    }
 
-		if(na.rm){
-			nas<-is.na(incvar)
-			design<-design[!nas,]
-			df <- model.frame(design)
-			incvar <- incvar[!nas]
-		}
+    # collect sampling weights
+    ws <- weights(design, "sampling")
 
+    # check for strictly positive incomes
+    if (any(incvar[ws != 0] <= 0, na.rm = TRUE))
+      stop(
+        "The GEI indices are defined for strictly positive variables only.\nNegative and zero values not allowed."
+      )
 
+    # compute point estimate
+    estimate <- CalcGEI(incvar, ws, epsilon)
 
-		ws <- weights(design, "sampling")
+    # collect analysis weights
+    ww <- weights(design, "analysis")
 
-		if ( any( incvar[ ws != 0 ] == 0, na.rm = TRUE) ) stop( paste("the GEI is undefined for zero incomes if epsilon ==", epsilon) )
+    # compute replicates
+    qq <-
+      apply(ww, 2 , function(wi)
+        CalcGEI(incvar , wi , epsilon = epsilon))
 
-		rval <- calc.gei( x = incvar, weights = ws, epsilon = epsilon)
+    # compute variance
+    if (any(is.na(qq)))
+      variance <- as.matrix(NA)
+    else {
+      variance <-
+        survey::svrVar(qq ,
+                       design$scale ,
+                       design$rscales ,
+                       mse = design$mse ,
+                       coef = estimate)
+      this.mean <- attr(variance , "means")
+      variance <- as.matrix(variance)
+      attr(variance , "means") <- this.mean
+    }
+    colnames(variance) <-
+      rownames(variance) <-
+      strsplit(as.character(formula)[[2]] , ' \\+ ')[[1]]
 
-		ww <- weights(design, "analysis")
+    # compute deff
+    if (is.character(deff) || deff || linearized) {
+      # compute linearized function
+      lin <- CalcGEI_IF(incvar , ws , epsilon)
 
-		qq <- apply(ww, 2, function(wi) calc.gei(incvar, wi, epsilon = epsilon) )
+      # compute deff
+      nobs <- sum(design$pweights > 0)
+      npop <- sum(design$pweights)
+      vsrs <-
+        unclass(
+          survey::svyvar(
+            lin ,
+            design,
+            na.rm = na.rm,
+            return.replicates = FALSE,
+            estimate.only = TRUE
+          )
+        ) * npop ^ 2 / nobs
+      if (deff != "replace")
+        vsrs <- vsrs * (npop - nobs) / npop
+      deff.estimate <- variance / vsrs
 
-		if ( any(is.na(qq) ) ) {
+      # filter observation
+      names(lin) <- rownames(design$variables)
 
-			variance <- as.matrix(NA)
-			colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-			class(rval) <- c( "cvystat" , "svrepstat" )
-			attr(rval, "var") <- variance
-			attr(rval, "statistic") <- "gei"
-			attr(rval,"epsilon")<- epsilon
+      # coerce to matrix
+      lin <-
+        matrix(lin ,
+               nrow = length(lin) ,
+               dimnames = list( rownames( design$variables ) , strsplit(as.character(formula)[[2]] , ' \\+ ')[[1]]))
 
-			return(rval)
+    }
 
-		} else {
+    # build result object
+    rval <- estimate
+    names(rval) <-
+      strsplit(as.character(formula)[[2]] , ' \\+ ')[[1]]
+    class(rval) <- c("cvystat" , "svrepstat")
+    attr(rval, "var") <- variance
+    attr(rval, "statistic") <- "gei"
+    attr(rval, "epsilon") <- epsilon
+    if (linearized)
+      attr(rval , "linearized") <- lin
+    if (linearized)
+      attr(rval , "index") <- as.numeric(rownames(lin))
 
-			variance <- survey::svrVar(qq, design$scale, design$rscales, mse = design$mse, coef = rval)
+    # keep replicates
+    if (return.replicates) {
+      attr(qq , "scale") <- design$scale
+      attr(qq , "rscales") <- design$rscales
+      attr(qq , "mse") <- design$mse
+      rval <- list(mean = rval , replicates = qq)
+      class(rval) <- c("cvystat" , "svrepstat")
+    }
 
-			variance <- as.matrix( variance )
+    # add design effect estimate
+    if (is.character(deff) ||
+        deff)
+      attr(rval , "deff") <- deff.estimate
 
-		}
+    # return object
+    rval
 
-		colnames( variance ) <- rownames( variance ) <-  names( rval ) <- strsplit( as.character( formula )[[2]] , ' \\+ ' )[[1]]
-		class(rval) <- c( "cvystat" , "svrepstat" )
-		attr(rval, "var") <- variance
-		attr(rval, "statistic") <- "gei"
-		attr(rval,"lin")<- NA
-		attr(rval,"epsilon")<- epsilon
-		return(rval)
-	}
+  }
 
 
 #' @rdname svygei
 #' @export
 svygei.DBIsvydesign <-
-		function (formula, design, ...) {
+  function (formula, design, ...) {
+    design$variables <-
+      getvars(
+        formula,
+        design$db$connection,
+        design$db$tablename,
+        updates = design$updates,
+        subset = design$subset
+      )
 
-		design$variables <- getvars(formula, design$db$connection, design$db$tablename, updates = design$updates, subset = design$subset)
+    NextMethod("svygei", design)
+  }
 
-		NextMethod("svygei", design)
-	}
+# function for point estimates
+CalcGEI <-
+  function(y , w, epsilon) {
 
+    # filter observations
+    w <- ifelse( y > 0 & w != 0 , w , 0 )
+    y <- ifelse( w!=0 , y , 1 )
 
-calc.gei <-
-	function( x, weights, epsilon ) {
+    # intermediate stats
+    N <- sum( w )
+    Ytot <- sum( w * y )
+    Ybar <- Ytot / N
 
-		x <- x[weights != 0 ]
-		weights <- weights[weights != 0 ]
+    # branch on epsilon
+    uscore <- y / Ybar
+    if (epsilon == 0) {
+      gscore <- -log(uscore)
+    } else if (epsilon == 1) {
+      gscore <- uscore * log(uscore)
+    } else {
+      gscore <- (uscore ^ epsilon - 1) / (epsilon ^ 2 - epsilon)
+    }
+    gei <- sum( w * gscore ) / N
 
-		if ( epsilon == 0 ) {
+    # return estimate
+    return(gei)
 
-			result.est <-
-				-T_fn( x , weights , 0 ) / U_fn( x , weights , 0 ) +
-				log( U_fn( x , weights , 1 ) / U_fn( x , weights , 0 ) )
+  }
 
-		} else if ( epsilon == 1 ) {
+# function for linearized functions
+CalcGEI_IF <-
+  function(y , w , epsilon) {
 
-			result.est <-
-				( T_fn( x , weights , 1 ) / U_fn( x , weights , 1 ) ) -
-				log( U_fn( x , weights , 1 ) / U_fn( x , weights , 0 ) )
+    # filter observations
+    w <- ifelse( y > 0 & w != 0 , w , 0 )
+    y <- ifelse( w!=0 , y , 1 )
 
-		} else {
+    # compute intermediate
+    N <- sum( w )
+    Ytot <- sum( w * y )
+    Ybar <- Ytot / N
+    gei <- CalcGEI( y , w , epsilon )
 
-			result.est <-
-				( epsilon * ( epsilon - 1 ) )^( -1 ) *
-				(
-					U_fn( x , weights , 0 )^( epsilon - 1 ) *
-					U_fn( x , weights , 1 )^( -epsilon ) *
-					U_fn( x , weights , epsilon ) - 1
-				)
+    # income-inequality score
+    uscore <- y / Ybar
+    if (epsilon == 0)
+      yscore <- -log(uscore)
+    else if (epsilon == 1)
+      yscore <- uscore * log(uscore)
+    else
+      yscore <- (uscore ^ epsilon - 1) / (epsilon ^ 2 - epsilon)
 
-		}
+    # first term
+    l1 <- (1 / N) * (yscore - gei)
 
-		result.est
+    # second term
+    if (epsilon == 0)
+      partial.Ybar <- 1 / Ybar
+    else if (epsilon == 1)
+      partial.Ybar <- -(1 / Ybar) * (gei + 1)
+    else
+      partial.Ybar <-
+      -(1 / (Ybar * (epsilon - 1))) * ((epsilon ^ 2 - epsilon) * gei + 1)
+    lin.Ybar <- (y - Ybar) / N
+    l2 <- partial.Ybar * lin.Ybar
 
-	}
+    # linearized
+    ll <- l1 + l2
+    ll <- ifelse( w != 0 , ll , 0 )
+    ll
 
-
+  }

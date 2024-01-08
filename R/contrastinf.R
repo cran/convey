@@ -8,7 +8,7 @@
 #'
 #' @return a list with two components: values - the estimate value and lin - the linearized variable
 #'
-#' @author Djalma Pessoa and Anthony Damico
+#' @author Djalma Pessoa, Guilherme Jacob, and Anthony Damico
 #'
 #' @seealso \code{svyqsr}
 #'
@@ -43,12 +43,12 @@
 #' svymean (~eqincome, des_eusilc)
 #'
 #' # quintile share ratio (qsr) linearization
-#' S20 <- svyisq(~ eqincome, design = des_eusilc, .20)
+#' S20 <- svyisq(~ eqincome, design = des_eusilc, .20, linearized = TRUE)
 #' S20_val <- coef (S20); attributes (S20_val) <- NULL
-#' S20_lin <- attr(S20 , "lin" )
-#' S80 <- svyisq(~ eqincome, design = des_eusilc, .80)
+#' S20_lin <- attr(S20 , "linearized" )
+#' S80 <- svyisq(~ eqincome, design = des_eusilc, .80, linearized = TRUE)
 #' S80_val <- coef (S80); attributes (S80_val) <- NULL
-#' S80_lin <- attr(S80 , "lin" )
+#' S80_lin <- attr(S80 , "linearized" )
 #' SU <- list (value = S80_val, lin = S80_lin )
 #' SI <- list (value = S20_val, lin = S20_lin )
 #' TOT <- list(value = sum( w * eusilc$eqincome) , lin = eusilc$eqincome )
@@ -71,17 +71,24 @@
 #'
 #' @export
 contrastinf <- function(exprlist, infunlist) {
-    datalist <- lapply(infunlist, function(thresh) thresh$value)
-    listlin <- lapply(infunlist, function(thresh) thresh$lin)
-    if (!is.list(exprlist))
-        exprlist <- list(contrast = exprlist)
-    dexprlist <- lapply(exprlist, function(expr) deriv(expr, names(datalist))[[1]])
-    value <- eval(exprlist$contrast, datalist)
-    values_deriv <- lapply(dexprlist, function(dexpr) eval(do.call(substitute, list(dexpr,
-        datalist))))
-    matval <- attr(values_deriv$contrast, "gradient")
-    matlin <- matrix(NA, length(infunlist[[1]]$lin), ncol(matval))
-    for (i in 1:length(listlin)) matlin[, i] <- listlin[[i]]
-    IT_lin <- matlin %*% t(matval)
-    list(value = value, lin = IT_lin)
+  datalist <- lapply(infunlist, function(thresh)
+    thresh$value)
+  listlin <- lapply(infunlist, function(thresh)
+    thresh$lin)
+  if (!is.list(exprlist))
+    exprlist <- list(contrast = exprlist)
+  dexprlist <-
+    lapply(exprlist, function(expr)
+      deriv(expr, names(datalist))[[1]])
+  value <- eval(exprlist$contrast, datalist)
+  values_deriv <-
+    lapply(dexprlist, function(dexpr)
+      eval(do.call(substitute, list(dexpr,
+                                    datalist))))
+  matval <- attr(values_deriv$contrast, "gradient")
+  matlin <- matrix(NA, length(infunlist[[1]]$lin), ncol(matval))
+  for (i in 1:length(listlin))
+    matlin[, i] <- listlin[[i]]
+  IT_lin <- matlin %*% t(matval)
+  list(value = value, lin = IT_lin)
 }
